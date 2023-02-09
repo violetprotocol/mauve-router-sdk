@@ -44,26 +44,26 @@ export interface MultiTxAuthRequest {
   txAuthRequestArray: TxAuthRequest[]
 }
 
-  export const fetchEats = (multiTxAuthRequest: MultiTxAuthRequest): Promise<string[]> => {
-    const baseApiUrl = 'http://localhost:8080/api/authz/swap';
-    const headers = new Headers({ 'Content-Type': 'application/json' })
-    const eatArray = fetch(baseApiUrl, {
-      method: 'GET',
-      headers,
-      body: JSON.stringify(multiTxAuthRequest),
+export const fetchEats = (multiTxAuthRequest: MultiTxAuthRequest): Promise<string[]> => {
+  const baseApiUrl = 'http://localhost:8080/api/authz/swap'
+  const headers = new Headers({ 'Content-Type': 'application/json' })
+  const eatArray = fetch(baseApiUrl, {
+    method: 'GET',
+    headers,
+    body: JSON.stringify(multiTxAuthRequest),
+  })
+    .then((res) => res.json())
+    .then((data) => {
+      return data
     })
-      .then((res) => res.json())
-      .then((data) => {
-        return data
-      })
-      .catch((e) => alert(e.message))
-    return eatArray;
-  }
+    .catch((e) => alert(e.message))
+  return eatArray
+}
 
 export interface Signature {
-  v: number;
-  r: string;
-  s: string;
+  v: number
+  r: string
+  s: string
 }
 
 // Splits the Ethereum Access Token received into V, R and S that is necessary when calling the contract
@@ -71,10 +71,10 @@ export interface Signature {
 export const splitSignature = (signature: string): Signature => {
   return {
     v: parseInt(signature.substring(130, 132), 16),
-    r: "0x" + signature.substring(2, 66),
-    s: "0x" + signature.substring(66, 130),
-  };
-};
+    r: '0x' + signature.substring(2, 66),
+    s: '0x' + signature.substring(66, 130),
+  }
+}
 
 /**
  * Options for producing the arguments to send calls to the router.
@@ -318,9 +318,8 @@ export abstract class SwapRouter {
     const eatArray: string[] = await fetchEats(multiTxAuthRequest)
 
     // Repack all parameters with v, r, s and expiry
-    return eatArray;
+    return eatArray
   }
-
 
   /**
    * @notice Generates the calldata for a MixedRouteSwap. Since single hop routes are not MixedRoutes, we will instead generate
