@@ -210,7 +210,7 @@ export abstract class SwapRouter {
     routerMustCustody: boolean,
     performAggregatedSlippageCheck: boolean,
     EATs?: EthereumAccessToken[]
-  ): TxAuthRequest[] | TxAuthResponse[] {
+  ): TxAuthRequest[] | string[] {
     const { swapRouterAddress: targetContract } = options
 
     if (!targetContract) {
@@ -218,7 +218,7 @@ export abstract class SwapRouter {
     }
 
     const txAuthRequestArray: TxAuthRequest[] = []
-    const txAuthResponseArray: TxAuthResponse[] = []
+    const swapCalldatasWithEAT: string[] = []
 
     trade.swaps.forEach(({ route, inputAmount, outputAmount }, index) => {
       const amountIn: string = toHex(trade.maximumAmountIn(options.slippageTolerance, inputAmount).quotient)
@@ -246,11 +246,11 @@ export abstract class SwapRouter {
           }
 
           if (EATs != undefined) {
-            const txAuthResponse = <TxAuthResponse>(
+            const swapCalldataWithEAT = <TxAuthResponse>(
               this.constructSwap('exactInputSingle', Object.values(exactInputSingleParams), targetContract, EATs[index])
             )
 
-            txAuthResponseArray.push(txAuthResponse)
+            swapCalldatasWithEAT.push(swapCalldataWithEAT)
           } else {
             const txAuthRequest = <TxAuthRequest>(
               this.constructSwap('exactInputSingle', Object.values(exactInputSingleParams), targetContract)
@@ -269,7 +269,7 @@ export abstract class SwapRouter {
             sqrtPriceLimitX96: 0,
           }
           if (EATs != undefined) {
-            const txAuthResponse = <TxAuthResponse>(
+            const swapCalldataWithEAT = <TxAuthResponse>(
               this.constructSwap(
                 'exactOutputSingle',
                 Object.values(exactOutputSingleParams),
@@ -278,7 +278,7 @@ export abstract class SwapRouter {
               )
             )
 
-            txAuthResponseArray.push(txAuthResponse)
+            swapCalldatasWithEAT.push(swapCalldataWithEAT)
           } else {
             const txAuthRequest = <TxAuthRequest>(
               this.constructSwap('exactOutputSingle', Object.values(exactOutputSingleParams), targetContract)
@@ -298,11 +298,11 @@ export abstract class SwapRouter {
             amountOutMinimum: performAggregatedSlippageCheck ? 0 : amountOut,
           }
           if (EATs != undefined) {
-            const txAuthResponse = <TxAuthResponse>(
+            const swapCalldataWithEAT = <TxAuthResponse>(
               this.constructSwap('exactInput', Object.values(exactInputParams), targetContract, EATs[index])
             )
 
-            txAuthResponseArray.push(txAuthResponse)
+            swapCalldatasWithEAT.push(swapCalldataWithEAT)
           } else {
             const txAuthRequest = <TxAuthRequest>(
               this.constructSwap('exactInput', Object.values(exactInputParams), targetContract)
@@ -318,11 +318,11 @@ export abstract class SwapRouter {
             amountInMaximum: amountIn,
           }
           if (EATs != undefined) {
-            const txAuthResponse = <TxAuthResponse>(
+            const swapCalldataWithEAT = <TxAuthResponse>(
               this.constructSwap('exactOutput', Object.values(exactOutputParams), targetContract, EATs[index])
             )
 
-            txAuthResponseArray.push(txAuthResponse)
+            swapCalldatasWithEAT.push(swapCalldataWithEAT)
           } else {
             const txAuthRequest = <TxAuthRequest>(
               this.constructSwap('exactOutput', Object.values(exactOutputParams), targetContract)
@@ -334,7 +334,7 @@ export abstract class SwapRouter {
       }
     })
 
-    return EATs != undefined ? txAuthResponseArray : txAuthRequestArray
+    return EATs != undefined ? swapCalldatasWithEAT : txAuthRequestArray
   }
 
   /**
@@ -371,11 +371,11 @@ export abstract class SwapRouter {
     const eatArray: EthereumAccessToken[] = await fetchEats(multiTxAuthRequest)
 
     // Second call to constructSwaps with EATs returns an array of TxAuthResponses which are prepared transactions with EATs
-    const txAuthResponses = <TxAuthResponse[]>(
+    const swapCalldatasWithEAT = <string[]>(
       this.constructSwaps(trade, options, routerMustCustody, performAggregatedSlippageCheck, eatArray)
     )
 
-    return txAuthResponses
+    return swapCalldatasWithEAT
   }
 
   /**
