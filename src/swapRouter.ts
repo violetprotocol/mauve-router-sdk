@@ -16,6 +16,7 @@ import {
 } from '@uniswap/v3-sdk'
 import invariant from 'tiny-invariant'
 import JSBI from 'jsbi'
+import { utils } from '@violetprotocol/ethereum-access-token-helpers'
 import { ADDRESS_THIS, MSG_SENDER } from './constants'
 import { ApproveAndCall, ApprovalTypes, CondensedAddLiquidityOptions } from './approveAndCall'
 import { Trade } from './entities/trade'
@@ -30,6 +31,50 @@ import { partitionMixedRouteByProtocol, getOutputOfPools } from './utils'
 
 const ZERO = JSBI.BigInt(0)
 const REFUND_ETH_PRICE_IMPACT_THRESHOLD = new Percent(JSBI.BigInt(50), JSBI.BigInt(100))
+
+export interface TxAuthRequest {
+  functionName: string
+  functionSignature: string
+  packedParams: string
+  targetContract: string
+}
+
+export interface MultiTxAuthRequest {
+  from: string
+  txAuthRequestArray: TxAuthRequest[]
+}
+
+  export const fetchEats = (multiTxAuthRequest: MultiTxAuthRequest): Promise<string[]> => {
+    const baseApiUrl = 'http://localhost:8080/api/authz/swap';
+    const headers = new Headers({ 'Content-Type': 'application/json' })
+    const eatArray = fetch(baseApiUrl, {
+      method: 'GET',
+      headers,
+      body: JSON.stringify(multiTxAuthRequest),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        return data
+      })
+      .catch((e) => alert(e.message))
+    return eatArray;
+  }
+
+export interface Signature {
+  v: number;
+  r: string;
+  s: string;
+}
+
+// Splits the Ethereum Access Token received into V, R and S that is necessary when calling the contract
+// function the requires an authorization token
+export const splitSignature = (signature: string): Signature => {
+  return {
+    v: parseInt(signature.substring(130, 132), 16),
+    r: "0x" + signature.substring(2, 66),
+    s: "0x" + signature.substring(66, 130),
+  };
+};
 
 /**
  * Options for producing the arguments to send calls to the router.
@@ -59,6 +104,10 @@ export interface SwapOptions {
    * Optional information for taking a fee on output.
    */
   fee?: FeeOptions
+
+  swapRouterAddress?: string
+
+  sender?: string
 }
 
 export interface SwapAndAddOptions extends SwapOptions {
@@ -89,6 +138,10 @@ export abstract class SwapRouter {
    * Cannot be constructed.
    */
   private constructor() {}
+
+  private static getPackedParams(functionName: string, rawParams: any[]): string {
+    return utils.packParameters(SwapRouter.INTERFACE, functionName, rawParams)
+  }
 
   /**
    * @notice Generates the calldata for a Swap with a V2 Route.
@@ -133,13 +186,22 @@ export abstract class SwapRouter {
    * @param performAggregatedSlippageCheck Flag for whether we want to perform an aggregated slippage check
    * @returns A string array of calldatas for the trade.
    */
-  private static encodeV3Swap(
+  private static async encodeV3Swap(
     trade: V3Trade<Currency, Currency, TradeType>,
     options: SwapOptions,
     routerMustCustody: boolean,
     performAggregatedSlippageCheck: boolean
-  ): string[] {
-    const calldatas: string[] = []
+  ): Promise<string[]> {
+    const txAuthRequestArray: TxAuthRequest[] = []
+    const { swapRouterAddress: targetContract, sender } = options
+
+    if (!targetContract) {
+      throw new Error('Missing Swap Router Address')
+    }
+
+    if (!sender) {
+      throw new Error('Missing sender')
+    }
 
     for (const { route, inputAmount, outputAmount } of trade.swaps) {
       const amountIn: string = toHex(trade.maximumAmountIn(options.slippageTolerance, inputAmount).quotient)
@@ -156,6 +218,7 @@ export abstract class SwapRouter {
 
       if (singleHop) {
         if (trade.tradeType === TradeType.EXACT_INPUT) {
+          const functionName = 'exactInputSingle'
           const exactInputSingleParams = {
             tokenIn: route.tokenPath[0].address,
             tokenOut: route.tokenPath[1].address,
@@ -165,9 +228,19 @@ export abstract class SwapRouter {
             amountOutMinimum: performAggregatedSlippageCheck ? 0 : amountOut,
             sqrtPriceLimitX96: 0,
           }
+          const packedParams = this.getPackedParams(functionName, Object.values(exactInputSingleParams))
+          const functionSignature = SwapRouter.INTERFACE.getSighash(functionName)
 
-          calldatas.push(SwapRouter.INTERFACE.encodeFunctionData('exactInputSingle', [exactInputSingleParams]))
+          const txAuthRequest = {
+            functionName,
+            functionSignature,
+            packedParams,
+            targetContract,
+          }
+
+          txAuthRequestArray.push(txAuthRequest)
         } else {
+          const functionName = 'exactOutputSingle'
           const exactOutputSingleParams = {
             tokenIn: route.tokenPath[0].address,
             tokenOut: route.tokenPath[1].address,
@@ -177,36 +250,77 @@ export abstract class SwapRouter {
             amountInMaximum: amountIn,
             sqrtPriceLimitX96: 0,
           }
+          const packedParams = this.getPackedParams(functionName, Object.values(exactOutputSingleParams))
+          const functionSignature = SwapRouter.INTERFACE.getSighash(functionName)
 
-          calldatas.push(SwapRouter.INTERFACE.encodeFunctionData('exactOutputSingle', [exactOutputSingleParams]))
+          const txAuthRequest = {
+            functionName,
+            functionSignature,
+            packedParams,
+            targetContract,
+          }
+
+          txAuthRequestArray.push(txAuthRequest)
         }
       } else {
         const path: string = encodeRouteToPath(route, trade.tradeType === TradeType.EXACT_OUTPUT)
 
         if (trade.tradeType === TradeType.EXACT_INPUT) {
+          const functionName = 'exactInput'
           const exactInputParams = {
             path,
             recipient,
             amountIn,
             amountOutMinimum: performAggregatedSlippageCheck ? 0 : amountOut,
           }
+          const packedParams = this.getPackedParams(functionName, Object.values(exactInputParams))
+          const functionSignature = SwapRouter.INTERFACE.getSighash(functionName)
 
-          calldatas.push(SwapRouter.INTERFACE.encodeFunctionData('exactInput', [exactInputParams]))
+          const txAuthRequest = {
+            functionName,
+            functionSignature,
+            packedParams,
+            targetContract,
+          }
+
+          txAuthRequestArray.push(txAuthRequest)
         } else {
+          const functionName = 'exactOutput'
           const exactOutputParams = {
             path,
             recipient,
             amountOut,
             amountInMaximum: amountIn,
           }
+          const packedParams = this.getPackedParams(functionName, Object.values(exactOutputParams))
+          const functionSignature = SwapRouter.INTERFACE.getSighash(functionName)
 
-          calldatas.push(SwapRouter.INTERFACE.encodeFunctionData('exactOutput', [exactOutputParams]))
+          const txAuthRequest = {
+            functionName,
+            functionSignature,
+            packedParams,
+            targetContract,
+          }
+
+          txAuthRequestArray.push(txAuthRequest)
         }
       }
     }
 
-    return calldatas
+    const multiTxAuthRequest: MultiTxAuthRequest = {
+      from: sender,
+      txAuthRequestArray,
+    }
+    // fetch EATS
+    // const response = await fetch()
+
+    // Change me
+    const eatArray: string[] = await fetchEats(multiTxAuthRequest)
+
+    // Repack all parameters with v, r, s and expiry
+    return eatArray;
   }
+
 
   /**
    * @notice Generates the calldata for a MixedRouteSwap. Since single hop routes are not MixedRoutes, we will instead generate
@@ -321,11 +435,11 @@ export abstract class SwapRouter {
     return calldatas
   }
 
-  private static encodeSwaps(
+  private static async encodeSwaps(
     trades: AnyTradeType,
     options: SwapOptions,
     isSwapAndAdd?: boolean
-  ): {
+  ): Promise<{
     calldatas: string[]
     sampleTrade:
       | V2Trade<Currency, Currency, TradeType>
@@ -337,7 +451,7 @@ export abstract class SwapRouter {
     totalAmountIn: CurrencyAmount<Currency>
     minimumAmountOut: CurrencyAmount<Currency>
     quoteAmountOut: CurrencyAmount<Currency>
-  } {
+  }> {
     // If dealing with an instance of the aggregated Trade object, unbundle it to individual trade objects.
     if (trades instanceof Trade) {
       invariant(
@@ -444,7 +558,7 @@ export abstract class SwapRouter {
       if (trade instanceof V2Trade) {
         calldatas.push(SwapRouter.encodeV2Swap(trade, options, routerMustCustody, performAggregatedSlippageCheck))
       } else if (trade instanceof V3Trade) {
-        for (const calldata of SwapRouter.encodeV3Swap(
+        for (const calldata of await SwapRouter.encodeV3Swap(
           trade,
           options,
           routerMustCustody,
@@ -501,7 +615,7 @@ export abstract class SwapRouter {
    * @param trades to produce call parameters for
    * @param options options for the call parameters
    */
-  public static swapCallParameters(
+  public static async swapCallParameters(
     trades:
       | Trade<Currency, Currency, TradeType>
       | V2Trade<Currency, Currency, TradeType>
@@ -513,7 +627,7 @@ export abstract class SwapRouter {
           | MixedRouteTrade<Currency, Currency, TradeType>
         )[],
     options: SwapOptions
-  ): MethodParameters {
+  ): Promise<MethodParameters> {
     const {
       calldatas,
       sampleTrade,
@@ -522,7 +636,7 @@ export abstract class SwapRouter {
       outputIsNative,
       totalAmountIn,
       minimumAmountOut,
-    } = SwapRouter.encodeSwaps(trades, options)
+    } = await SwapRouter.encodeSwaps(trades, options)
 
     // unwrap or sweep
     if (routerMustCustody) {
@@ -557,14 +671,14 @@ export abstract class SwapRouter {
    * @param trades to produce call parameters for
    * @param options options for the call parameters
    */
-  public static swapAndAddCallParameters(
+  public static async swapAndAddCallParameters(
     trades: AnyTradeType,
     options: SwapAndAddOptions,
     position: Position,
     addLiquidityOptions: CondensedAddLiquidityOptions,
     tokenInApprovalType: ApprovalTypes,
     tokenOutApprovalType: ApprovalTypes
-  ): MethodParameters {
+  ): Promise<MethodParameters> {
     const {
       calldatas,
       inputIsNative,
@@ -573,7 +687,7 @@ export abstract class SwapRouter {
       totalAmountIn: totalAmountSwapped,
       quoteAmountOut,
       minimumAmountOut,
-    } = SwapRouter.encodeSwaps(trades, options, true)
+    } = await SwapRouter.encodeSwaps(trades, options, true)
 
     // encode output token permit if necessary
     if (options.outputTokenPermit) {
