@@ -1660,6 +1660,11 @@
     "@uniswap/v3-core" "1.0.0"
     "@uniswap/v3-periphery" "^1.0.1"
 
+"@violetprotocol/ethereum-access-token-helpers@^0.2.0":
+  version "0.2.0"
+  resolved "https://registry.yarnpkg.com/@violetprotocol/ethereum-access-token-helpers/-/ethereum-access-token-helpers-0.2.0.tgz#e826309674c1dc8e47c2c8f00664ad0b0c9a3ea7"
+  integrity sha512-YrQSEFmCwnrjKTG3oS9bbA1CwzGQB95EpH+eYPIZ8UQFTO11+XOWlFq6RhZ6MhvSpJK5xxQsvp2GsBRmj0yeZg==
+
 abab@^2.0.0:
   version "2.0.5"
   resolved "https://registry.npmjs.org/abab/-/abab-2.0.5.tgz"
