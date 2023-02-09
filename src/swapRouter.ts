@@ -1,6 +1,6 @@
 import { Interface } from '@ethersproject/abi'
 import { Currency, CurrencyAmount, Percent, TradeType, validateAndParseAddress, WETH9 } from '@uniswap/sdk-core'
-import { abi } from '@uniswap/swap-router-contracts/artifacts/contracts/interfaces/ISwapRouter02.sol/ISwapRouter02.json'
+import { abi } from '@violetprotocol/swap-router-contracts/artifacts/contracts/interfaces/ISwapRouter02.sol/ISwapRouter02.json'
 import { Trade as V2Trade } from '@uniswap/v2-sdk'
 import {
   encodeRouteToPath,
@@ -10,6 +10,7 @@ import {
   PermitOptions,
   Pool,
   Position,
+  Route,
   SelfPermit,
   toHex,
   Trade as V3Trade,
@@ -32,6 +33,8 @@ import { partitionMixedRouteByProtocol, getOutputOfPools } from './utils'
 const ZERO = JSBI.BigInt(0)
 const REFUND_ETH_PRICE_IMPACT_THRESHOLD = new Percent(JSBI.BigInt(50), JSBI.BigInt(100))
 
+type TxAuthResponse = string
+
 export interface TxAuthRequest {
   functionName: string
   functionSignature: string
@@ -44,7 +47,7 @@ export interface MultiTxAuthRequest {
   txAuthRequestArray: TxAuthRequest[]
 }
 
-export const fetchEats = (multiTxAuthRequest: MultiTxAuthRequest): Promise<string[]> => {
+export const fetchEats = (multiTxAuthRequest: MultiTxAuthRequest): Promise<EthereumAccessToken[]> => {
   const baseApiUrl = 'http://localhost:8080/api/authz/swap'
   const headers = new Headers({ 'Content-Type': 'application/json' })
   const eatArray = fetch(baseApiUrl, {
@@ -54,7 +57,10 @@ export const fetchEats = (multiTxAuthRequest: MultiTxAuthRequest): Promise<strin
   })
     .then((res) => res.json())
     .then((data) => {
-      return data
+      return data.map((eat: string) => {
+        const decodedEAT = JSON.parse(atob(eat))
+        return { ...splitSignature(decodedEAT.signature), expiry: parseInt(decodedEAT.expiry, 10) }
+      })
     })
     .catch((e) => alert(e.message))
   return eatArray
@@ -64,6 +70,10 @@ export interface Signature {
   v: number
   r: string
   s: string
+}
+
+export interface EthereumAccessToken extends Signature {
+  expiry: number
 }
 
 // Splits the Ethereum Access Token received into V, R and S that is necessary when calling the contract
@@ -178,32 +188,39 @@ export abstract class SwapRouter {
     }
   }
 
-  /**
-   * @notice Generates the calldata for a Swap with a V3 Route.
-   * @param trade The V3Trade to encode.
-   * @param options SwapOptions to use for the trade.
-   * @param routerMustCustody Flag for whether funds should be sent to the router
-   * @param performAggregatedSlippageCheck Flag for whether we want to perform an aggregated slippage check
-   * @returns A string array of calldatas for the trade.
-   */
-  private static async encodeV3Swap(
+  private static constructSwap(functionName: string, params: any[], targetContract: string, EAT?: EthereumAccessToken) {
+    if (EAT != undefined) {
+      return SwapRouter.INTERFACE.encodeFunctionData(functionName, [EAT.v, EAT.r, EAT.s, EAT.expiry, ...params])
+    }
+
+    const packedParams = this.getPackedParams(functionName, params)
+    const functionSignature = SwapRouter.INTERFACE.getSighash(functionName)
+
+    return {
+      functionName,
+      functionSignature,
+      packedParams,
+      targetContract,
+    }
+  }
+
+  private static constructSwaps(
     trade: V3Trade<Currency, Currency, TradeType>,
     options: SwapOptions,
     routerMustCustody: boolean,
-    performAggregatedSlippageCheck: boolean
-  ): Promise<string[]> {
-    const txAuthRequestArray: TxAuthRequest[] = []
-    const { swapRouterAddress: targetContract, sender } = options
+    performAggregatedSlippageCheck: boolean,
+    EATs?: EthereumAccessToken[]
+  ): TxAuthRequest[] | TxAuthResponse[] {
+    const { swapRouterAddress: targetContract } = options
 
     if (!targetContract) {
       throw new Error('Missing Swap Router Address')
     }
 
-    if (!sender) {
-      throw new Error('Missing sender')
-    }
+    const txAuthRequestArray: TxAuthRequest[] = []
+    const txAuthResponseArray: TxAuthResponse[] = []
 
-    for (const { route, inputAmount, outputAmount } of trade.swaps) {
+    trade.swaps.forEach(({ route, inputAmount, outputAmount }, index) => {
       const amountIn: string = toHex(trade.maximumAmountIn(options.slippageTolerance, inputAmount).quotient)
       const amountOut: string = toHex(trade.minimumAmountOut(options.slippageTolerance, outputAmount).quotient)
 
@@ -218,7 +235,6 @@ export abstract class SwapRouter {
 
       if (singleHop) {
         if (trade.tradeType === TradeType.EXACT_INPUT) {
-          const functionName = 'exactInputSingle'
           const exactInputSingleParams = {
             tokenIn: route.tokenPath[0].address,
             tokenOut: route.tokenPath[1].address,
@@ -228,19 +244,21 @@ export abstract class SwapRouter {
             amountOutMinimum: performAggregatedSlippageCheck ? 0 : amountOut,
             sqrtPriceLimitX96: 0,
           }
-          const packedParams = this.getPackedParams(functionName, Object.values(exactInputSingleParams))
-          const functionSignature = SwapRouter.INTERFACE.getSighash(functionName)
 
-          const txAuthRequest = {
-            functionName,
-            functionSignature,
-            packedParams,
-            targetContract,
+          if (EATs != undefined) {
+            const txAuthResponse = <TxAuthResponse>(
+              this.constructSwap('exactInputSingle', Object.values(exactInputSingleParams), targetContract, EATs[index])
+            )
+
+            txAuthResponseArray.push(txAuthResponse)
+          } else {
+            const txAuthRequest = <TxAuthRequest>(
+              this.constructSwap('exactInputSingle', Object.values(exactInputSingleParams), targetContract)
+            )
+
+            txAuthRequestArray.push(txAuthRequest)
           }
-
-          txAuthRequestArray.push(txAuthRequest)
         } else {
-          const functionName = 'exactOutputSingle'
           const exactOutputSingleParams = {
             tokenIn: route.tokenPath[0].address,
             tokenOut: route.tokenPath[1].address,
@@ -250,75 +268,114 @@ export abstract class SwapRouter {
             amountInMaximum: amountIn,
             sqrtPriceLimitX96: 0,
           }
-          const packedParams = this.getPackedParams(functionName, Object.values(exactOutputSingleParams))
-          const functionSignature = SwapRouter.INTERFACE.getSighash(functionName)
+          if (EATs != undefined) {
+            const txAuthResponse = <TxAuthResponse>(
+              this.constructSwap(
+                'exactOutputSingle',
+                Object.values(exactOutputSingleParams),
+                targetContract,
+                EATs[index]
+              )
+            )
 
-          const txAuthRequest = {
-            functionName,
-            functionSignature,
-            packedParams,
-            targetContract,
+            txAuthResponseArray.push(txAuthResponse)
+          } else {
+            const txAuthRequest = <TxAuthRequest>(
+              this.constructSwap('exactOutputSingle', Object.values(exactOutputSingleParams), targetContract)
+            )
+
+            txAuthRequestArray.push(txAuthRequest)
           }
-
-          txAuthRequestArray.push(txAuthRequest)
         }
       } else {
         const path: string = encodeRouteToPath(route, trade.tradeType === TradeType.EXACT_OUTPUT)
 
         if (trade.tradeType === TradeType.EXACT_INPUT) {
-          const functionName = 'exactInput'
           const exactInputParams = {
             path,
             recipient,
             amountIn,
             amountOutMinimum: performAggregatedSlippageCheck ? 0 : amountOut,
           }
-          const packedParams = this.getPackedParams(functionName, Object.values(exactInputParams))
-          const functionSignature = SwapRouter.INTERFACE.getSighash(functionName)
+          if (EATs != undefined) {
+            const txAuthResponse = <TxAuthResponse>(
+              this.constructSwap('exactInput', Object.values(exactInputParams), targetContract, EATs[index])
+            )
 
-          const txAuthRequest = {
-            functionName,
-            functionSignature,
-            packedParams,
-            targetContract,
+            txAuthResponseArray.push(txAuthResponse)
+          } else {
+            const txAuthRequest = <TxAuthRequest>(
+              this.constructSwap('exactInput', Object.values(exactInputParams), targetContract)
+            )
+
+            txAuthRequestArray.push(txAuthRequest)
           }
-
-          txAuthRequestArray.push(txAuthRequest)
         } else {
-          const functionName = 'exactOutput'
           const exactOutputParams = {
             path,
             recipient,
             amountOut,
             amountInMaximum: amountIn,
           }
-          const packedParams = this.getPackedParams(functionName, Object.values(exactOutputParams))
-          const functionSignature = SwapRouter.INTERFACE.getSighash(functionName)
+          if (EATs != undefined) {
+            const txAuthResponse = <TxAuthResponse>(
+              this.constructSwap('exactOutput', Object.values(exactOutputParams), targetContract, EATs[index])
+            )
 
-          const txAuthRequest = {
-            functionName,
-            functionSignature,
-            packedParams,
-            targetContract,
+            txAuthResponseArray.push(txAuthResponse)
+          } else {
+            const txAuthRequest = <TxAuthRequest>(
+              this.constructSwap('exactOutput', Object.values(exactOutputParams), targetContract)
+            )
+
+            txAuthRequestArray.push(txAuthRequest)
           }
-
-          txAuthRequestArray.push(txAuthRequest)
         }
       }
+    })
+
+    return EATs != undefined ? txAuthResponseArray : txAuthRequestArray
+  }
+
+  /**
+   * @notice Generates the calldata for a Swap with a V3 Route.
+   * @param trade The V3Trade to encode.
+   * @param options SwapOptions to use for the trade.
+   * @param routerMustCustody Flag for whether funds should be sent to the router
+   * @param performAggregatedSlippageCheck Flag for whether we want to perform an aggregated slippage check
+   * @returns A string array of calldatas for the trade.
+   */
+  private static async encodeV3Swap(
+    trade: V3Trade<Currency, Currency, TradeType>,
+    options: SwapOptions,
+    routerMustCustody: boolean,
+    performAggregatedSlippageCheck: boolean
+  ): Promise<string[]> {
+    // First call to constructSwaps creates an array of TxAuthRequests for EATs to be issued for
+    const txAuthRequestArray = <TxAuthRequest[]>(
+      this.constructSwaps(trade, options, routerMustCustody, performAggregatedSlippageCheck)
+    )
+
+    const { sender } = options
+
+    if (!sender) {
+      throw new Error('Missing sender')
     }
 
     const multiTxAuthRequest: MultiTxAuthRequest = {
       from: sender,
       txAuthRequestArray,
     }
-    // fetch EATS
-    // const response = await fetch()
 
-    // Change me
-    const eatArray: string[] = await fetchEats(multiTxAuthRequest)
+    // TxAuthRequests are passed to the API and returns EATs
+    const eatArray: EthereumAccessToken[] = await fetchEats(multiTxAuthRequest)
 
-    // Repack all parameters with v, r, s and expiry
-    return eatArray
+    // Second call to constructSwaps with EATs returns an array of TxAuthResponses which are prepared transactions with EATs
+    const txAuthResponses = <TxAuthResponse[]>(
+      this.constructSwaps(trade, options, routerMustCustody, performAggregatedSlippageCheck, eatArray)
+    )
+
+    return txAuthResponses
   }
 
   /**

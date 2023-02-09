@@ -28,12 +28,13 @@
   "dependencies": {
     "@ethersproject/abi": "^5.5.0",
     "@uniswap/sdk-core": "^3.0.1",
-    "@uniswap/swap-router-contracts": "1.1.0",
     "@uniswap/v2-sdk": "^3.0.1",
-    "@uniswap/v3-sdk": "^3.8.3"
+    "@uniswap/v3-sdk": "^3.8.3",
+    "@violetprotocol/swap-router-contracts": "^1.4.0"
   },
   "devDependencies": {
     "@types/jest": "^24.0.25",
+    "@violetprotocol/ethereum-access-token-helpers": "^0.2.0",
     "prettier": "^2.4.1",
     "tsdx": "^0.14.1"
   },
