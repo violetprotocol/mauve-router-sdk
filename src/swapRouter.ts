@@ -275,14 +275,15 @@ export abstract class SwapRouter {
       }
     }
 
-    const multiTxAuthRequest: MultiTxAuthRequest = {
-      from: sender,
-      txAuthRequestArray,
-    }
+    // const multiTxAuthRequest: MultiTxAuthRequest = {
+    //   from: sender,
+    //   txAuthRequestArray,
+    // }
     // fetch EATS
     // const response = await fetch()
 
-    return calldatas
+    // Change me
+    return []
   }
 
   /**
@@ -398,11 +399,11 @@ export abstract class SwapRouter {
     return calldatas
   }
 
-  private static encodeSwaps(
+  private static async encodeSwaps(
     trades: AnyTradeType,
     options: SwapOptions,
     isSwapAndAdd?: boolean
-  ): {
+  ): Promise<{
     calldatas: string[]
     sampleTrade:
       | V2Trade<Currency, Currency, TradeType>
@@ -414,7 +415,7 @@ export abstract class SwapRouter {
     totalAmountIn: CurrencyAmount<Currency>
     minimumAmountOut: CurrencyAmount<Currency>
     quoteAmountOut: CurrencyAmount<Currency>
-  } {
+  }> {
     // If dealing with an instance of the aggregated Trade object, unbundle it to individual trade objects.
     if (trades instanceof Trade) {
       invariant(
@@ -521,7 +522,7 @@ export abstract class SwapRouter {
       if (trade instanceof V2Trade) {
         calldatas.push(SwapRouter.encodeV2Swap(trade, options, routerMustCustody, performAggregatedSlippageCheck))
       } else if (trade instanceof V3Trade) {
-        for (const calldata of SwapRouter.encodeV3Swap(
+        for (const calldata of await SwapRouter.encodeV3Swap(
           trade,
           options,
           routerMustCustody,
@@ -578,7 +579,7 @@ export abstract class SwapRouter {
    * @param trades to produce call parameters for
    * @param options options for the call parameters
    */
-  public static swapCallParameters(
+  public static async swapCallParameters(
     trades:
       | Trade<Currency, Currency, TradeType>
       | V2Trade<Currency, Currency, TradeType>
@@ -590,7 +591,7 @@ export abstract class SwapRouter {
           | MixedRouteTrade<Currency, Currency, TradeType>
         )[],
     options: SwapOptions
-  ): MethodParameters {
+  ): Promise<MethodParameters> {
     const {
       calldatas,
       sampleTrade,
@@ -599,7 +600,7 @@ export abstract class SwapRouter {
       outputIsNative,
       totalAmountIn,
       minimumAmountOut,
-    } = SwapRouter.encodeSwaps(trades, options)
+    } = await SwapRouter.encodeSwaps(trades, options)
 
     // unwrap or sweep
     if (routerMustCustody) {
@@ -634,14 +635,14 @@ export abstract class SwapRouter {
    * @param trades to produce call parameters for
    * @param options options for the call parameters
    */
-  public static swapAndAddCallParameters(
+  public static async swapAndAddCallParameters(
     trades: AnyTradeType,
     options: SwapAndAddOptions,
     position: Position,
     addLiquidityOptions: CondensedAddLiquidityOptions,
     tokenInApprovalType: ApprovalTypes,
     tokenOutApprovalType: ApprovalTypes
-  ): MethodParameters {
+  ): Promise<MethodParameters> {
     const {
       calldatas,
       inputIsNative,
@@ -650,7 +651,7 @@ export abstract class SwapRouter {
       totalAmountIn: totalAmountSwapped,
       quoteAmountOut,
       minimumAmountOut,
-    } = SwapRouter.encodeSwaps(trades, options, true)
+    } = await SwapRouter.encodeSwaps(trades, options, true)
 
     // encode output token permit if necessary
     if (options.outputTokenPermit) {
