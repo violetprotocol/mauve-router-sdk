@@ -1,9 +1,9 @@
 {
-  "name": "@uniswap/router-sdk",
+  "name": "@violetprotocol/mauve-router-sdk",
   "version": "1.4.0",
-  "description": "An sdk for routing swaps using Uniswap v2 and Uniswap v3.",
+  "description": "An sdk for routing swaps using Mauve.",
   "publishConfig": {
-    "access": "public"
+    "access": "restricted"
   },
   "main": "dist/index.js",
   "typings": "dist/index.d.ts",
@@ -18,10 +18,10 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/Uniswap/router-sdk.git"
+    "url": "https://github.com/violetprotocol/mauve-router-sdk.git"
   },
   "keywords": [
-    "uniswap",
+    "mauve",
     "ethereum"
   ],
   "license": "MIT",
