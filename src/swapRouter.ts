@@ -1,7 +1,14 @@
 import { Interface } from '@ethersproject/abi'
-import { Currency, CurrencyAmount, Percent, TradeType, validateAndParseAddress, WETH9 } from '@uniswap/sdk-core'
+import {
+  Currency,
+  CurrencyAmount,
+  Percent,
+  TradeType,
+  validateAndParseAddress,
+  WETH9,
+} from '@violetprotocol/mauve-sdk-core'
 import { abi } from '@uniswap/swap-router-contracts/artifacts/contracts/interfaces/ISwapRouter02.sol/ISwapRouter02.json'
-import { Trade as V2Trade } from '@uniswap/v2-sdk'
+import { Trade as V2Trade } from '@violetprotocol/mauve-v2-sdk'
 import {
   encodeRouteToPath,
   FeeOptions,
@@ -13,7 +20,7 @@ import {
   SelfPermit,
   toHex,
   Trade as V3Trade,
-} from '@uniswap/v3-sdk'
+} from '@violetprotocol/mauve-v3-sdk'
 import invariant from 'tiny-invariant'
 import JSBI from 'jsbi'
 import { ADDRESS_THIS, MSG_SENDER } from './constants'
