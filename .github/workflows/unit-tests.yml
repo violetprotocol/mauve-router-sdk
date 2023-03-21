@@ -19,9 +19,12 @@ jobs:
         with:
           node-version: 14
           registry-url: https://registry.npmjs.org
+          NPM_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Install dependencies
         run: yarn install --frozen-lockfile
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Run tests
         run: yarn test
