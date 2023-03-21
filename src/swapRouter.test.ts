@@ -78,7 +78,7 @@ describe('SwapRouter', () => {
 
         it('array of trades', async () => {
           const trades = [v2Trade, await v3Trade]
-          const { calldata, value } = SwapRouter.swapCallParameters(trades, {
+          const { calldata, value } = await SwapRouter.swapCallParameters(trades, {
             slippageTolerance,
             recipient,
             deadlineOrPreviousBlockhash: deadline,
@@ -104,7 +104,7 @@ describe('SwapRouter', () => {
             TradeType.EXACT_INPUT
           )
 
-          const { calldata, value } = SwapRouter.swapCallParameters(trades, {
+          const { calldata, value } = await SwapRouter.swapCallParameters(trades, {
             slippageTolerance,
             recipient,
             deadlineOrPreviousBlockhash: deadline,
@@ -126,7 +126,7 @@ describe('SwapRouter', () => {
 
         it('array of trades', async () => {
           const trades = [v2Trade, await v3Trade]
-          const { calldata, value } = SwapRouter.swapCallParameters(trades, {
+          const { calldata, value } = await SwapRouter.swapCallParameters(trades, {
             slippageTolerance,
             recipient,
             deadlineOrPreviousBlockhash: deadline,
@@ -152,7 +152,7 @@ describe('SwapRouter', () => {
             TradeType.EXACT_OUTPUT
           )
 
-          const { calldata, value } = SwapRouter.swapCallParameters(trades, {
+          const { calldata, value } = await SwapRouter.swapCallParameters(trades, {
             slippageTolerance,
             recipient,
             deadlineOrPreviousBlockhash: deadline,
@@ -178,7 +178,7 @@ describe('SwapRouter', () => {
 
         it('array of trades', async () => {
           const trades = [v2Trade, await v3Trade]
-          const { calldata, value } = SwapRouter.swapCallParameters(trades, {
+          const { calldata, value } = await SwapRouter.swapCallParameters(trades, {
             slippageTolerance,
             recipient,
             deadlineOrPreviousBlockhash: deadline,
@@ -204,7 +204,7 @@ describe('SwapRouter', () => {
             TradeType.EXACT_INPUT
           )
 
-          const { calldata, value } = SwapRouter.swapCallParameters(trades, {
+          const { calldata, value } = await SwapRouter.swapCallParameters(trades, {
             slippageTolerance,
             recipient,
             deadlineOrPreviousBlockhash: deadline,
@@ -230,7 +230,7 @@ describe('SwapRouter', () => {
 
         it('array of trades', async () => {
           const trades = [v2Trade, await v3Trade]
-          const { calldata, value } = SwapRouter.swapCallParameters(trades, {
+          const { calldata, value } = await SwapRouter.swapCallParameters(trades, {
             slippageTolerance,
             recipient,
             deadlineOrPreviousBlockhash: deadline,
@@ -256,7 +256,7 @@ describe('SwapRouter', () => {
             TradeType.EXACT_OUTPUT
           )
 
-          const { calldata, value } = SwapRouter.swapCallParameters(trades, {
+          const { calldata, value } = await SwapRouter.swapCallParameters(trades, {
             slippageTolerance,
             recipient,
             deadlineOrPreviousBlockhash: deadline,
@@ -289,7 +289,7 @@ describe('SwapRouter', () => {
 
           it('generates the same calldata', async () => {
             const trades = [v2Trade, await v3Trade]
-            const { calldata, value } = SwapRouter.swapCallParameters(trades, {
+            const { calldata, value } = await SwapRouter.swapCallParameters(trades, {
               slippageTolerance,
               recipient,
               deadlineOrPreviousBlockhash: deadline,
@@ -298,7 +298,7 @@ describe('SwapRouter', () => {
             expect(value).toBe('0x00')
 
             const mixedRouteTrades = [await mixedRouteTrade1, await mixedRouteTrade2]
-            const { calldata: mixedRouteCalldata, value: mixedRouteValue } = SwapRouter.swapCallParameters(
+            const { calldata: mixedRouteCalldata, value: mixedRouteValue } = await SwapRouter.swapCallParameters(
               mixedRouteTrades,
               {
                 slippageTolerance,
@@ -327,7 +327,7 @@ describe('SwapRouter', () => {
               TradeType.EXACT_INPUT
             )
 
-            const { calldata, value } = SwapRouter.swapCallParameters(trades, {
+            const { calldata, value } = await SwapRouter.swapCallParameters(trades, {
               slippageTolerance,
               recipient,
               deadlineOrPreviousBlockhash: deadline,
@@ -346,7 +346,7 @@ describe('SwapRouter', () => {
               },
             ])
 
-            const { calldata: mixedRouteCalldata, value: mixedRouteValue } = SwapRouter.swapCallParameters(
+            const { calldata: mixedRouteCalldata, value: mixedRouteValue } = await SwapRouter.swapCallParameters(
               mixedRouteTrades,
               {
                 slippageTolerance,
@@ -380,7 +380,7 @@ describe('SwapRouter', () => {
 
           it('single mixedRoute trade', async () => {
             const trades = [await mixedRouteTrade1, await mixedRouteTrade2]
-            const { calldata, value } = SwapRouter.swapCallParameters(trades, {
+            const { calldata, value } = await SwapRouter.swapCallParameters(trades, {
               slippageTolerance,
               recipient,
               deadlineOrPreviousBlockhash: deadline,
@@ -401,7 +401,7 @@ describe('SwapRouter', () => {
               },
             ])
 
-            const { calldata, value } = SwapRouter.swapCallParameters(trades, {
+            const { calldata, value } = await SwapRouter.swapCallParameters(trades, {
               slippageTolerance,
               recipient,
               deadlineOrPreviousBlockhash: deadline,
@@ -430,7 +430,7 @@ describe('SwapRouter', () => {
 
         it('generates correct calldata', async () => {
           const trades = [await mixedRouteTrade1, await mixedRouteTrade2]
-          const { calldata, value } = SwapRouter.swapCallParameters(trades, {
+          const { calldata, value } = await SwapRouter.swapCallParameters(trades, {
             slippageTolerance,
             recipient,
             deadlineOrPreviousBlockhash: deadline,
@@ -459,7 +459,7 @@ describe('SwapRouter', () => {
 
           it('array of trades', async () => {
             const trades = [v2Trade, await v3Trade]
-            const { calldata, value } = SwapRouter.swapCallParameters(trades, {
+            const { calldata, value } = await SwapRouter.swapCallParameters(trades, {
               slippageTolerance,
               recipient,
               deadlineOrPreviousBlockhash: deadline,
@@ -470,7 +470,7 @@ describe('SwapRouter', () => {
 
           it('mixedRoute produces the same calldata when swapped in', async () => {
             const trades = [v2Trade, await mixedRouteTrade]
-            const { calldata, value } = SwapRouter.swapCallParameters(trades, {
+            const { calldata, value } = await SwapRouter.swapCallParameters(trades, {
               slippageTolerance,
               recipient,
               deadlineOrPreviousBlockhash: deadline,
@@ -496,7 +496,7 @@ describe('SwapRouter', () => {
               TradeType.EXACT_INPUT
             )
 
-            const { calldata, value } = SwapRouter.swapCallParameters(trades, {
+            const { calldata, value } = await SwapRouter.swapCallParameters(trades, {
               slippageTolerance,
               recipient,
               deadlineOrPreviousBlockhash: deadline,
@@ -523,7 +523,7 @@ describe('SwapRouter', () => {
               ]
             )
 
-            const { calldata, value } = SwapRouter.swapCallParameters(trades, {
+            const { calldata, value } = await SwapRouter.swapCallParameters(trades, {
               slippageTolerance,
               recipient,
               deadlineOrPreviousBlockhash: deadline,
@@ -549,7 +549,7 @@ describe('SwapRouter', () => {
 
           it('array of trades', async () => {
             const trades = [v2Trade, await v3Trade]
-            const { calldata, value } = SwapRouter.swapCallParameters(trades, {
+            const { calldata, value } = await SwapRouter.swapCallParameters(trades, {
               slippageTolerance,
               recipient,
               deadlineOrPreviousBlockhash: deadline,
@@ -575,7 +575,7 @@ describe('SwapRouter', () => {
               TradeType.EXACT_OUTPUT
             )
 
-            const { calldata, value } = SwapRouter.swapCallParameters(trades, {
+            const { calldata, value } = await SwapRouter.swapCallParameters(trades, {
               slippageTolerance,
               recipient,
               deadlineOrPreviousBlockhash: deadline,
@@ -607,7 +607,7 @@ describe('SwapRouter', () => {
 
           it('array of trades', async () => {
             const trades = [v2Trade, await v3Trade]
-            const { calldata, value } = SwapRouter.swapCallParameters(trades, {
+            const { calldata, value } = await SwapRouter.swapCallParameters(trades, {
               slippageTolerance,
               recipient,
               deadlineOrPreviousBlockhash: deadline,
@@ -618,7 +618,7 @@ describe('SwapRouter', () => {
 
           it('mixedRoutes in array produce same calldata', async () => {
             const trades = [await mixedRouteTrade, await v3Trade]
-            const { calldata, value } = SwapRouter.swapCallParameters(trades, {
+            const { calldata, value } = await SwapRouter.swapCallParameters(trades, {
               slippageTolerance,
               recipient,
               deadlineOrPreviousBlockhash: deadline,
@@ -644,7 +644,7 @@ describe('SwapRouter', () => {
               TradeType.EXACT_INPUT
             )
 
-            const { calldata, value } = SwapRouter.swapCallParameters(trades, {
+            const { calldata, value } = await SwapRouter.swapCallParameters(trades, {
               slippageTolerance,
               recipient,
               deadlineOrPreviousBlockhash: deadline,
@@ -675,7 +675,7 @@ describe('SwapRouter', () => {
               ]
             )
 
-            const { calldata, value } = SwapRouter.swapCallParameters(trades, {
+            const { calldata, value } = await SwapRouter.swapCallParameters(trades, {
               slippageTolerance,
               recipient,
               deadlineOrPreviousBlockhash: deadline,
@@ -701,7 +701,7 @@ describe('SwapRouter', () => {
 
           it('array of trades', async () => {
             const trades = [v2Trade, await v3Trade]
-            const { calldata, value } = SwapRouter.swapCallParameters(trades, {
+            const { calldata, value } = await SwapRouter.swapCallParameters(trades, {
               slippageTolerance,
               recipient,
               deadlineOrPreviousBlockhash: deadline,
@@ -727,7 +727,7 @@ describe('SwapRouter', () => {
               TradeType.EXACT_OUTPUT
             )
 
-            const { calldata, value } = SwapRouter.swapCallParameters(trades, {
+            const { calldata, value } = await SwapRouter.swapCallParameters(trades, {
               slippageTolerance,
               recipient,
               deadlineOrPreviousBlockhash: deadline,
@@ -754,7 +754,7 @@ describe('SwapRouter', () => {
 
         it('array of trades', async () => {
           const trades = [v2Trade, await v3Trade]
-          const { calldata, value } = SwapRouter.swapCallParameters(trades, {
+          const { calldata, value } = await SwapRouter.swapCallParameters(trades, {
             slippageTolerance,
             recipient,
             deadlineOrPreviousBlockhash: deadline,
@@ -781,7 +781,7 @@ describe('SwapRouter', () => {
 
         it('array of trades', async () => {
           const trades = [v2Trade, await v3Trade]
-          const { calldata, value } = SwapRouter.swapCallParameters(trades, {
+          const { calldata, value } = await SwapRouter.swapCallParameters(trades, {
             slippageTolerance,
             recipient,
             deadlineOrPreviousBlockhash: deadline,
@@ -811,7 +811,7 @@ describe('SwapRouter', () => {
 
           it('array of trades', async () => {
             const trades = [v2Trade, await v3Trade]
-            const { calldata, value } = SwapRouter.swapCallParameters(trades, {
+            const { calldata, value } = await SwapRouter.swapCallParameters(trades, {
               slippageTolerance,
               recipient,
               deadlineOrPreviousBlockhash: deadline,
@@ -822,7 +822,7 @@ describe('SwapRouter', () => {
 
           it('array of trades with mixedRoute produces same calldata', async () => {
             const trades = [v2Trade, await mixedRouteTrade]
-            const { calldata, value } = SwapRouter.swapCallParameters(trades, {
+            const { calldata, value } = await SwapRouter.swapCallParameters(trades, {
               slippageTolerance,
               recipient,
               deadlineOrPreviousBlockhash: deadline,
@@ -848,7 +848,7 @@ describe('SwapRouter', () => {
               TradeType.EXACT_INPUT
             )
 
-            const { calldata, value } = SwapRouter.swapCallParameters(trades, {
+            const { calldata, value } = await SwapRouter.swapCallParameters(trades, {
               slippageTolerance,
               recipient,
               deadlineOrPreviousBlockhash: deadline,
@@ -875,7 +875,7 @@ describe('SwapRouter', () => {
               ]
             )
 
-            const { calldata, value } = SwapRouter.swapCallParameters(trades, {
+            const { calldata, value } = await SwapRouter.swapCallParameters(trades, {
               slippageTolerance,
               recipient,
               deadlineOrPreviousBlockhash: deadline,
@@ -901,7 +901,7 @@ describe('SwapRouter', () => {
 
           it('array of trades', async () => {
             const trades = [v2Trade, await v3Trade]
-            const { calldata, value } = SwapRouter.swapCallParameters(trades, {
+            const { calldata, value } = await SwapRouter.swapCallParameters(trades, {
               slippageTolerance,
               recipient,
               deadlineOrPreviousBlockhash: deadline,
@@ -927,7 +927,7 @@ describe('SwapRouter', () => {
               TradeType.EXACT_OUTPUT
             )
 
-            const { calldata, value } = SwapRouter.swapCallParameters(trades, {
+            const { calldata, value } = await SwapRouter.swapCallParameters(trades, {
               slippageTolerance,
               recipient,
               deadlineOrPreviousBlockhash: deadline,
@@ -959,7 +959,7 @@ describe('SwapRouter', () => {
 
           it('array of trades', async () => {
             const trades = [v2Trade, await v3Trade]
-            const { calldata, value } = SwapRouter.swapCallParameters(trades, {
+            const { calldata, value } = await SwapRouter.swapCallParameters(trades, {
               slippageTolerance,
               recipient,
               deadlineOrPreviousBlockhash: deadline,
@@ -970,7 +970,7 @@ describe('SwapRouter', () => {
 
           it('array of trades with mixedRoute produces same calldata', async () => {
             const trades = [await mixedRouteTrade, await v3Trade]
-            const { calldata, value } = SwapRouter.swapCallParameters(trades, {
+            const { calldata, value } = await SwapRouter.swapCallParameters(trades, {
               slippageTolerance,
               recipient,
               deadlineOrPreviousBlockhash: deadline,
@@ -996,7 +996,7 @@ describe('SwapRouter', () => {
               TradeType.EXACT_INPUT
             )
 
-            const { calldata, value } = SwapRouter.swapCallParameters(trades, {
+            const { calldata, value } = await SwapRouter.swapCallParameters(trades, {
               slippageTolerance,
               recipient,
               deadlineOrPreviousBlockhash: deadline,
@@ -1025,7 +1025,7 @@ describe('SwapRouter', () => {
               ]
             )
 
-            const { calldata, value } = SwapRouter.swapCallParameters(trades, {
+            const { calldata, value } = await SwapRouter.swapCallParameters(trades, {
               slippageTolerance,
               recipient,
               deadlineOrPreviousBlockhash: deadline,
@@ -1051,7 +1051,7 @@ describe('SwapRouter', () => {
 
           it('array of trades', async () => {
             const trades = [v2Trade, await v3Trade]
-            const { calldata, value } = SwapRouter.swapCallParameters(trades, {
+            const { calldata, value } = await SwapRouter.swapCallParameters(trades, {
               slippageTolerance,
               recipient,
               deadlineOrPreviousBlockhash: deadline,
@@ -1077,7 +1077,7 @@ describe('SwapRouter', () => {
               TradeType.EXACT_OUTPUT
             )
 
-            const { calldata, value } = SwapRouter.swapCallParameters(trades, {
+            const { calldata, value } = await SwapRouter.swapCallParameters(trades, {
               slippageTolerance,
               recipient,
               deadlineOrPreviousBlockhash: deadline,
