@@ -1123,7 +1123,7 @@ describe('SwapRouter', () => {
 
         it('correctly encodes the entire swap process', async () => {
           const trades = [v2Trade, await v3Trade]
-          const methodParameters = SwapRouter.swapAndAddCallParameters(
+          const methodParameters = await SwapRouter.swapAndAddCallParameters(
             trades,
             { slippageTolerance },
             position,
@@ -1136,7 +1136,7 @@ describe('SwapRouter', () => {
 
         it('correctly encodes the entire swap process when v2 + mixedRoute', async () => {
           const trades = [v2Trade, await mixedRouteTrade3]
-          const methodParameters = SwapRouter.swapAndAddCallParameters(
+          const methodParameters = await SwapRouter.swapAndAddCallParameters(
             trades,
             { slippageTolerance },
             position,
@@ -1149,7 +1149,7 @@ describe('SwapRouter', () => {
 
         it('correctly encodes the entire swap process when mixedRoute + v3', async () => {
           const trades = [await mixedRouteTrade2, await v3Trade]
-          const methodParameters = SwapRouter.swapAndAddCallParameters(
+          const methodParameters = await SwapRouter.swapAndAddCallParameters(
             trades,
             { slippageTolerance },
             position,
@@ -1200,7 +1200,7 @@ describe('SwapRouter', () => {
 
         it('encodes the entire swap process for a multi route trade', async () => {
           const trades = [v2Trade, await v3Trade]
-          const methodParameters = SwapRouter.swapAndAddCallParameters(
+          const methodParameters = await SwapRouter.swapAndAddCallParameters(
             trades,
             { slippageTolerance },
             position,
@@ -1213,7 +1213,7 @@ describe('SwapRouter', () => {
 
         it('encodes the entire swap process for a multi route trade with v2, mixedRoute', async () => {
           const trades = [v2Trade, await mixedRouteTrade3]
-          const methodParameters = SwapRouter.swapAndAddCallParameters(
+          const methodParameters = await SwapRouter.swapAndAddCallParameters(
             trades,
             { slippageTolerance },
             position,
@@ -1226,7 +1226,7 @@ describe('SwapRouter', () => {
 
         it('encodes the entire swap process for a multi route trade with mixedRoute, v3', async () => {
           const trades = [await mixedRouteTrade2, await v3Trade]
-          const methodParameters = SwapRouter.swapAndAddCallParameters(
+          const methodParameters = await SwapRouter.swapAndAddCallParameters(
             trades,
             { slippageTolerance },
             position,
@@ -1239,7 +1239,7 @@ describe('SwapRouter', () => {
 
         it('encodes the entire swap process for a multi route trade with mixedRoute, mixedRoute', async () => {
           const trades = [await mixedRouteTrade2, await mixedRouteTrade3]
-          const methodParameters = SwapRouter.swapAndAddCallParameters(
+          const methodParameters = await SwapRouter.swapAndAddCallParameters(
             trades,
             { slippageTolerance },
             position,
@@ -1282,7 +1282,7 @@ describe('SwapRouter', () => {
 
         it('correctly encodes the entire swap process', async () => {
           const trades = [v2Trade, await v3Trade]
-          const methodParameters = SwapRouter.swapAndAddCallParameters(
+          const methodParameters = await SwapRouter.swapAndAddCallParameters(
             trades,
             { slippageTolerance },
             position,
@@ -1295,7 +1295,7 @@ describe('SwapRouter', () => {
 
         it('correctly encodes the entire swap process, v2, mixed', async () => {
           const trades = [v2Trade, await mixedRouteTrade3]
-          const methodParameters = SwapRouter.swapAndAddCallParameters(
+          const methodParameters = await SwapRouter.swapAndAddCallParameters(
             trades,
             { slippageTolerance },
             position,
@@ -1308,7 +1308,7 @@ describe('SwapRouter', () => {
 
         it('correctly encodes the entire swap process, mixed, v3', async () => {
           const trades = [await mixedRouteTrade2, await v3Trade]
-          const methodParameters = SwapRouter.swapAndAddCallParameters(
+          const methodParameters = await SwapRouter.swapAndAddCallParameters(
             trades,
             { slippageTolerance },
             position,
@@ -1352,7 +1352,7 @@ describe('SwapRouter', () => {
 
         it('correctly encodes the entire swap process', async () => {
           const trades = [v2Trade, await v3Trade]
-          const methodParameters = SwapRouter.swapAndAddCallParameters(
+          const methodParameters = await SwapRouter.swapAndAddCallParameters(
             trades,
             { slippageTolerance },
             position,
@@ -1365,7 +1365,7 @@ describe('SwapRouter', () => {
 
         it('correctly encodes the entire swap process, v2, mixed', async () => {
           const trades = [v2Trade, await mixedRouteTrade3]
-          const methodParameters = SwapRouter.swapAndAddCallParameters(
+          const methodParameters = await SwapRouter.swapAndAddCallParameters(
             trades,
             { slippageTolerance },
             position,
@@ -1378,7 +1378,7 @@ describe('SwapRouter', () => {
 
         it('correctly encodes the entire swap process, mixed, v3', async () => {
           const trades = [await mixedRouteTrade2, await v3Trade]
-          const methodParameters = SwapRouter.swapAndAddCallParameters(
+          const methodParameters = await SwapRouter.swapAndAddCallParameters(
             trades,
             { slippageTolerance },
             position,
@@ -1391,7 +1391,7 @@ describe('SwapRouter', () => {
 
         it('correctly encodes the entire swap process, mixed, mixed', async () => {
           const trades = [await mixedRouteTrade2, await mixedRouteTrade3]
-          const methodParameters = SwapRouter.swapAndAddCallParameters(
+          const methodParameters = await SwapRouter.swapAndAddCallParameters(
             trades,
             { slippageTolerance },
             position,
@@ -1433,7 +1433,7 @@ describe('SwapRouter', () => {
 
         it('correctly encodes the entire swap process', async () => {
           const trades = [v2Trade, await v3Trade]
-          const methodParameters = SwapRouter.swapAndAddCallParameters(
+          const methodParameters = await SwapRouter.swapAndAddCallParameters(
             trades,
             { slippageTolerance },
             position,
@@ -1446,7 +1446,7 @@ describe('SwapRouter', () => {
 
         it('correctly encodes the entire swap process, v2, mixed', async () => {
           const trades = [v2Trade, await mixedRouteTrade3]
-          const methodParameters = SwapRouter.swapAndAddCallParameters(
+          const methodParameters = await SwapRouter.swapAndAddCallParameters(
             trades,
             { slippageTolerance },
             position,
@@ -1459,7 +1459,7 @@ describe('SwapRouter', () => {
 
         it('correctly encodes the entire swap process, mixed, v3', async () => {
           const trades = [await mixedRouteTrade2, await v3Trade]
-          const methodParameters = SwapRouter.swapAndAddCallParameters(
+          const methodParameters = await SwapRouter.swapAndAddCallParameters(
             trades,
             { slippageTolerance },
             position,
@@ -1472,7 +1472,7 @@ describe('SwapRouter', () => {
 
         it('correctly encodes the entire swap process, mixed, mixed', async () => {
           const trades = [await mixedRouteTrade2, await mixedRouteTrade3]
-          const methodParameters = SwapRouter.swapAndAddCallParameters(
+          const methodParameters = await SwapRouter.swapAndAddCallParameters(
             trades,
             { slippageTolerance },
             position,
@@ -1514,7 +1514,7 @@ describe('SwapRouter', () => {
 
         it('correctly encodes the entire swap process', async () => {
           const trades = [v2Trade, await v3Trade]
-          const methodParameters = SwapRouter.swapAndAddCallParameters(
+          const methodParameters = await SwapRouter.swapAndAddCallParameters(
             trades,
             { slippageTolerance },
             position,
@@ -1527,7 +1527,7 @@ describe('SwapRouter', () => {
 
         it('correctly encodes the entire swap process v2, mixed', async () => {
           const trades = [v2Trade, await mixedRouteTrade3]
-          const methodParameters = SwapRouter.swapAndAddCallParameters(
+          const methodParameters = await SwapRouter.swapAndAddCallParameters(
             trades,
             { slippageTolerance },
             position,
@@ -1540,7 +1540,7 @@ describe('SwapRouter', () => {
 
         it('correctly encodes the entire swap process mixed, v3', async () => {
           const trades = [await mixedRouteTrade2, await v3Trade]
-          const methodParameters = SwapRouter.swapAndAddCallParameters(
+          const methodParameters = await SwapRouter.swapAndAddCallParameters(
             trades,
             { slippageTolerance },
             position,
@@ -1553,7 +1553,7 @@ describe('SwapRouter', () => {
 
         it('correctly encodes the entire swap process mixed, mixed', async () => {
           const trades = [await mixedRouteTrade2, await mixedRouteTrade3]
-          const methodParameters = SwapRouter.swapAndAddCallParameters(
+          const methodParameters = await SwapRouter.swapAndAddCallParameters(
             trades,
             { slippageTolerance },
             position,
@@ -1595,7 +1595,7 @@ describe('SwapRouter', () => {
 
         it('correctly encodes the entire swap process', async () => {
           const trades = [v2Trade, await v3Trade]
-          const methodParameters = SwapRouter.swapAndAddCallParameters(
+          const methodParameters = await SwapRouter.swapAndAddCallParameters(
             trades,
             { slippageTolerance },
             position,
@@ -1608,7 +1608,7 @@ describe('SwapRouter', () => {
 
         it('correctly encodes the entire swap process v2, mixed', async () => {
           const trades = [v2Trade, await mixedRouteTrade3]
-          const methodParameters = SwapRouter.swapAndAddCallParameters(
+          const methodParameters = await SwapRouter.swapAndAddCallParameters(
             trades,
             { slippageTolerance },
             position,
@@ -1621,7 +1621,7 @@ describe('SwapRouter', () => {
 
         it('correctly encodes the entire swap process mixed, v3', async () => {
           const trades = [await mixedRouteTrade2, await v3Trade]
-          const methodParameters = SwapRouter.swapAndAddCallParameters(
+          const methodParameters = await SwapRouter.swapAndAddCallParameters(
             trades,
             { slippageTolerance },
             position,
@@ -1634,7 +1634,7 @@ describe('SwapRouter', () => {
 
         it('correctly encodes the entire swap process mixed, mixed', async () => {
           const trades = [await mixedRouteTrade2, await mixedRouteTrade3]
-          const methodParameters = SwapRouter.swapAndAddCallParameters(
+          const methodParameters = await SwapRouter.swapAndAddCallParameters(
             trades,
             { slippageTolerance },
             position,
@@ -1672,7 +1672,7 @@ describe('SwapRouter', () => {
 
         it('correctly encodes the entire swap process', async () => {
           const trades = [await v3Trade]
-          const methodParameters = SwapRouter.swapAndAddCallParameters(
+          const methodParameters = await SwapRouter.swapAndAddCallParameters(
             trades,
             { slippageTolerance },
             position,
@@ -1685,7 +1685,7 @@ describe('SwapRouter', () => {
 
         it('correctly encodes the entire swap process when is a mixedRoute', async () => {
           const trades = [await mixedRouteTrade3]
-          const methodParameters = SwapRouter.swapAndAddCallParameters(
+          const methodParameters = await SwapRouter.swapAndAddCallParameters(
             trades,
             { slippageTolerance },
             position,
@@ -1722,7 +1722,7 @@ describe('SwapRouter', () => {
 
         it('correctly encodes the entire swap process', async () => {
           const trades = [await v3Trade]
-          const methodParameters = SwapRouter.swapAndAddCallParameters(
+          const methodParameters = await SwapRouter.swapAndAddCallParameters(
             trades,
             { slippageTolerance },
             position,
@@ -1735,7 +1735,7 @@ describe('SwapRouter', () => {
 
         it('correctly encodes the entire swap process when is mixedRoute', async () => {
           const trades = [await mixedRouteTrade3]
-          const methodParameters = SwapRouter.swapAndAddCallParameters(
+          const methodParameters = await SwapRouter.swapAndAddCallParameters(
             trades,
             { slippageTolerance },
             position,
