@@ -1,6 +1,6 @@
 import { Interface } from '@ethersproject/abi'
 import { Percent, Token, validateAndParseAddress } from '@violetprotocol/mauve-sdk-core'
-import { abi } from '@uniswap/swap-router-contracts/artifacts/contracts/interfaces/IPeripheryPaymentsWithFeeExtended.sol/IPeripheryPaymentsWithFeeExtended.json'
+import { abi } from '@violetprotocol/mauve-swap-router-contracts/artifacts/contracts/interfaces/IPeripheryPaymentsWithFeeExtended.sol/IPeripheryPaymentsWithFeeExtended.json'
 import { FeeOptions, Payments, toHex } from '@violetprotocol/mauve-v3-sdk'
 import JSBI from 'jsbi'
 
