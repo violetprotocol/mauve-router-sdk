@@ -90,7 +90,7 @@ export abstract class EATMulticallExtended {
       const deadline = toHex(validation)
       return {
         functionSignature: EATMulticallExtended.INTERFACE.getSighash(
-          'multicall(uint8,bytes32,bytes32,uint256,uint256,bytes[]'
+          'multicall(uint8,bytes32,bytes32,uint256,uint256,bytes[])'
         ),
         parameters: utils.packParameters(
           EATMulticallExtended.INTERFACE,
