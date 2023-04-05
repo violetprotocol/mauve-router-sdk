@@ -8,6 +8,7 @@ import {
   MulticallParameters,
   Payments,
   PermitOptions,
+  PresignEATFunctionCall,
   SelfPermit,
   toHex,
   Trade as V3Trade,
@@ -18,8 +19,8 @@ import { ADDRESS_THIS, MSG_SENDER } from './constants'
 import { Trade } from './entities/trade'
 import { Protocol } from './entities/protocol'
 import { RouteV3 } from './entities/route'
-import { Validation } from './multicallExtended'
 import { PaymentsExtended } from './paymentsExtended'
+import { EATMulticallExtended, Validation } from './EATmulticallExtended'
 
 const ZERO = JSBI.BigInt(0)
 const REFUND_ETH_PRICE_IMPACT_THRESHOLD = new Percent(JSBI.BigInt(50), JSBI.BigInt(100))
@@ -300,7 +301,7 @@ export abstract class SwapRouter {
       | V3Trade<Currency, Currency, TradeType>
       | V3Trade<Currency, Currency, TradeType>[],
     options: SwapOptions
-  ): MulticallParameters {
+  ): MulticallParameters & PresignEATFunctionCall {
     const {
       calldatas,
       sampleTrade,
@@ -333,7 +334,12 @@ export abstract class SwapRouter {
       calldatas.push(Payments.encodeRefundETH())
     }
 
+    const preSignMulticall = EATMulticallExtended.encodePresignMulticallExtended(
+      calldatas,
+      options.deadlineOrPreviousBlockhash
+    )
     return {
+      ...preSignMulticall,
       calls: calldatas,
       value: toHex(inputIsNative ? totalAmountIn.quotient : ZERO),
     }
