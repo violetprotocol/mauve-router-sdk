@@ -1,34 +1,26 @@
+import { CurrencyAmount, Ether, Percent, Token, TradeType, WETH9 } from '@violetprotocol/mauve-sdk-core'
 import {
-  BigintIsh,
-  Currency,
-  CurrencyAmount,
-  Ether,
-  Percent,
-  Token,
-  TradeType,
-  WETH9,
-} from '@violetprotocol/mauve-sdk-core'
-import {
-  encodeRouteToPath,
   encodeSqrtRatioX96,
   FeeAmount,
   nearestUsableTick,
   Pool,
-  Route,
   Route as V3Route,
   TickMath,
   TICK_SPACINGS,
-  toHex,
   Trade as V3Trade,
 } from '@violetprotocol/mauve-v3-sdk'
 import JSBI from 'jsbi'
-import { SwapRouter, Trade } from '.'
+import { ADDRESS_THIS, PaymentsExtended, SwapRouter, Trade } from '.'
+import { EATMulticallExtended } from './EATmulticallExtended'
+import { REFUND_ETH_FUNC_SIG } from './utils/functionSignatures'
+import { encodeTrade, encodeMultiHopTrade } from './utils/tradeEncoding'
 
 describe('SwapRouter', () => {
   const ETHER = Ether.onChain(1)
   const WETH = WETH9[1]
 
   const token0 = new Token(1, '0x0000000000000000000000000000000000000001', 18, 't0', 'token0')
+  // TODO: Change following address as it might be confused with ADDRESS_THIS?
   const token1 = new Token(1, '0x0000000000000000000000000000000000000002', 18, 't1', 'token1')
 
   const feeAmount = FeeAmount.MEDIUM
@@ -62,71 +54,37 @@ describe('SwapRouter', () => {
   describe('#swapCallParameters', () => {
     describe('single-hop exact input (v3)', () => {
       describe('different trade configurations result in identical calldata', () => {
-        const expectedCalldata =
-          '0x5ae401dc000000000000000000000000000000000000000000000000000000000000007b000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000016000000000000000000000000000000000000000000000000000000000000000e4472b43f300000000000000000000000000000000000000000000000000000000000000640000000000000000000000000000000000000000000000000000000000000062000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000000030000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000e404e45aaf000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000bb8000000000000000000000000000000000000000000000000000000000000000300000000000000000000000000000000000000000000000000000000000000640000000000000000000000000000000000000000000000000000000000000061000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000'
-
-        // 5ae401dc multicall(bytes[], uint256) functionSignature
-        // 000000000000000000000000000000000000000000000000000000000000007b
-        // 0000000000000000000000000000000000000000000000000000000000000040
-        // 0000000000000000000000000000000000000000000000000000000000000002
-        // 0000000000000000000000000000000000000000000000000000000000000040
-        // 0000000000000000000000000000000000000000000000000000000000000160
-        // 00000000000000000000000000000000000000000000000000000000000000e4
-        // 472b43f3 functionSignature
-        // 0000000000000000000000000000000000000000000000000000000000000064
-        // 0000000000000000000000000000000000000000000000000000000000000062
-        // 0000000000000000000000000000000000000000000000000000000000000080
-        // 0000000000000000000000000000000000000000000000000000000000000003
-        // 0000000000000000000000000000000000000000000000000000000000000002
-        // 0000000000000000000000000000000000000000000000000000000000000001
-        // 0000000000000000000000000000000000000000000000000000000000000002
-        // 0000000000000000000000000000000000000000000000000000000000000000
-        // 000000000000000000000000000000000000000000000000000000e4
-        //
-        // 04e45aaf EXACT_INPUT_SINGLE_FUNC_SIG exactInputSingle((address,address,uint24,address,uint256,uint256,uint160))
-        // 0000000000000000000000000000000000000000000000000000000000000001
-        // 0000000000000000000000000000000000000000000000000000000000000002
-        // 0000000000000000000000000000000000000000000000000000000000000bb8
-        // 0000000000000000000000000000000000000000000000000000000000000003
-        // 0000000000000000000000000000000000000000000000000000000000000064
-        // 0000000000000000000000000000000000000000000000000000000000000061
-        // 0000000000000000000000000000000000000000000000000000000000000000
-        // 00000000000000000000000000000000000000000000000000000000
-
         const amountIn = CurrencyAmount.fromRawAmount(token0, JSBI.BigInt(100))
 
         const v3Trade = V3Trade.fromRoute(new V3Route([pool_0_1], token0, token1), amountIn, TradeType.EXACT_INPUT)
 
-        it.only('array of trades', async () => {
-          const trades = [await v3Trade]
-          const { calls, value } = await SwapRouter.swapCallParameters(trades, {
+        it('array of trades', async () => {
+          const trade = await v3Trade
+          const trades = [trade]
+          const encodedTrade = encodeTrade(
+            'exactInputSingle',
+            token0,
+            token1,
+            pool_0_1,
+            recipient,
+            trade.maximumAmountIn(slippageTolerance, trade.inputAmount).quotient,
+            trade.minimumAmountOut(slippageTolerance, trade.outputAmount).quotient
+          )
+          const preSignMulticall = EATMulticallExtended.encodePresignMulticallExtended(encodedTrade, deadline)
+
+          const { calls, parameters, value } = await SwapRouter.swapCallParameters(trades, {
             slippageTolerance,
             recipient,
             deadlineOrPreviousBlockhash: deadline,
           })
 
-          encodeTrade(
-            'exactInput',
-            token0,
-            token1,
-            pool_0_1,
-            recipient,
-            (await v3Trade).maximumAmountIn(slippageTolerance, (await v3Trade).inputAmount).quotient,
-            (await v3Trade).minimumAmountOut(slippageTolerance, (await v3Trade).outputAmount).quotient
-          )
-          encodeMultiHopTrade(
-            TradeType.EXACT_INPUT,
-            new V3Route([pool_0_1], token0, token1),
-            recipient,
-            (await v3Trade).maximumAmountIn(slippageTolerance, (await v3Trade).inputAmount).quotient,
-            (await v3Trade).minimumAmountOut(slippageTolerance, (await v3Trade).outputAmount).quotient
-          )
-          expect(calls).toEqual(expectedCalldata)
+          expect(calls).toEqual([encodedTrade])
+          expect(parameters).toEqual(preSignMulticall.parameters)
           expect(value).toBe('0x00')
         })
 
         it('meta-trade', async () => {
-          const trades = await Trade.fromRoutes(
+          const trade = await Trade.fromRoutes(
             [
               {
                 routev3: (await v3Trade).swaps[0].route,
@@ -136,62 +94,98 @@ describe('SwapRouter', () => {
             TradeType.EXACT_INPUT
           )
 
-          const { calls, value } = await SwapRouter.swapCallParameters(trades, {
+          const encodedTrade = encodeTrade(
+            'exactInputSingle',
+            token0,
+            token1,
+            pool_0_1,
+            recipient,
+            trade.maximumAmountIn(slippageTolerance, trade.inputAmount).quotient,
+            trade.minimumAmountOut(slippageTolerance, trade.outputAmount).quotient
+          )
+          const preSignMulticall = EATMulticallExtended.encodePresignMulticallExtended(encodedTrade, deadline)
+
+          const { calls, parameters, value } = await SwapRouter.swapCallParameters(trade, {
             slippageTolerance,
             recipient,
             deadlineOrPreviousBlockhash: deadline,
           })
-          expect(calls).toEqual(expectedCalldata)
+
+          expect(calls).toEqual([encodedTrade])
+          expect(parameters).toEqual(preSignMulticall.parameters)
           expect(value).toBe('0x00')
         })
       })
     })
 
-    describe('single-hop exact output (v2 + v3)', () => {
+    describe('single-hop exact output (v3)', () => {
       describe('different trade configurations result in identical calldata', () => {
-        const expectedCalldata =
-          '0x5ae401dc000000000000000000000000000000000000000000000000000000000000007b000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000016000000000000000000000000000000000000000000000000000000000000000e442712a6700000000000000000000000000000000000000000000000000000000000000640000000000000000000000000000000000000000000000000000000000000066000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000000030000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000e45023b4df000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000bb8000000000000000000000000000000000000000000000000000000000000000300000000000000000000000000000000000000000000000000000000000000640000000000000000000000000000000000000000000000000000000000000067000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000'
         const amountOut = CurrencyAmount.fromRawAmount(token1, JSBI.BigInt(100))
 
         const v3Trade = V3Trade.fromRoute(new V3Route([pool_0_1], token0, token1), amountOut, TradeType.EXACT_OUTPUT)
 
         it('array of trades', async () => {
-          const trades = [await v3Trade]
-          const { calls, value } = await SwapRouter.swapCallParameters(trades, {
+          const trade = await v3Trade
+          const trades = [trade]
+
+          const encodedTrade = encodeTrade(
+            'exactOutputSingle',
+            token0,
+            token1,
+            pool_0_1,
+            recipient,
+            trade.minimumAmountOut(slippageTolerance, trade.outputAmount).quotient,
+            trade.maximumAmountIn(slippageTolerance, trade.inputAmount).quotient
+          )
+          const preSignMulticall = EATMulticallExtended.encodePresignMulticallExtended(encodedTrade, deadline)
+
+          const { parameters, calls, value } = await SwapRouter.swapCallParameters(trades, {
             slippageTolerance,
             recipient,
             deadlineOrPreviousBlockhash: deadline,
           })
-          expect(calls).toEqual(expectedCalldata)
+
+          expect(calls).toEqual([encodedTrade])
+          expect(parameters).toEqual(preSignMulticall.parameters)
           expect(value).toBe('0x00')
         })
 
         it('meta-trade', async () => {
+          const trade = await v3Trade
           const trades = await Trade.fromRoutes(
             [
               {
-                routev3: (await v3Trade).swaps[0].route,
+                routev3: trade.swaps[0].route,
                 amount: amountOut,
               },
             ],
             TradeType.EXACT_OUTPUT
           )
 
-          const { calls, value } = await SwapRouter.swapCallParameters(trades, {
+          const encodedTrade = encodeTrade(
+            'exactOutputSingle',
+            token0,
+            token1,
+            pool_0_1,
+            recipient,
+            trade.minimumAmountOut(slippageTolerance, trade.outputAmount).quotient,
+            trade.maximumAmountIn(slippageTolerance, trade.inputAmount).quotient
+          )
+          const preSignMulticall = EATMulticallExtended.encodePresignMulticallExtended(encodedTrade, deadline)
+          const { parameters, calls, value } = await SwapRouter.swapCallParameters(trades, {
             slippageTolerance,
             recipient,
             deadlineOrPreviousBlockhash: deadline,
           })
-          expect(calls).toEqual(expectedCalldata)
+          expect(calls).toEqual([encodedTrade])
+          expect(parameters).toEqual(preSignMulticall.parameters)
           expect(value).toBe('0x00')
         })
       })
     })
 
-    describe('multi-hop exact input (v2 + v3)', () => {
+    describe('multi-hop exact input (v3)', () => {
       describe('different trade configurations result in identical calldata', () => {
-        const expectedCalldata =
-          '0x5ae401dc000000000000000000000000000000000000000000000000000000000000007b00000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000001800000000000000000000000000000000000000000000000000000000000000104472b43f30000000000000000000000000000000000000000000000000000000000000064000000000000000000000000000000000000000000000000000000000000006100000000000000000000000000000000000000000000000000000000000000800000000000000000000000000000000000000000000000000000000000000003000000000000000000000000000000000000000000000000000000000000000300000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000002000000000000000000000000c02aaa39b223fe8d0a0e5c4f27ead9083c756cc2000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000124b858183f0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000000030000000000000000000000000000000000000000000000000000000000000064000000000000000000000000000000000000000000000000000000000000005f00000000000000000000000000000000000000000000000000000000000000420000000000000000000000000000000000000001000bb80000000000000000000000000000000000000002000bb8c02aaa39b223fe8d0a0e5c4f27ead9083c756cc200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000'
         const amountIn = CurrencyAmount.fromRawAmount(token0, JSBI.BigInt(100))
 
         const v3Trade = V3Trade.fromRoute(
@@ -201,42 +195,63 @@ describe('SwapRouter', () => {
         )
 
         it('array of trades', async () => {
-          const trades = [await v3Trade]
-          const { calls, value } = await SwapRouter.swapCallParameters(trades, {
+          const trade = await v3Trade
+          const trades = [trade]
+          const encodedTrade = encodeMultiHopTrade(
+            TradeType.EXACT_INPUT,
+            new V3Route([pool_0_1, pool_1_WETH], token0, WETH),
+            recipient,
+            trade.maximumAmountIn(slippageTolerance, trade.inputAmount).quotient,
+            trade.minimumAmountOut(slippageTolerance, trade.outputAmount).quotient
+          )
+
+          const preSignMulticall = EATMulticallExtended.encodePresignMulticallExtended(encodedTrade, deadline)
+          const { parameters, calls, value } = await SwapRouter.swapCallParameters(trades, {
             slippageTolerance,
             recipient,
             deadlineOrPreviousBlockhash: deadline,
           })
-          expect(calls).toEqual(expectedCalldata)
+
+          expect(calls).toEqual([encodedTrade])
+          expect(parameters).toEqual(preSignMulticall.parameters)
           expect(value).toBe('0x00')
         })
 
         it('meta-trade', async () => {
+          const trade = await v3Trade
           const trades = await Trade.fromRoutes(
             [
               {
-                routev3: (await v3Trade).swaps[0].route,
+                routev3: trade.swaps[0].route,
                 amount: amountIn,
               },
             ],
             TradeType.EXACT_INPUT
           )
+          const encodedTrade = encodeMultiHopTrade(
+            TradeType.EXACT_INPUT,
+            new V3Route([pool_0_1, pool_1_WETH], token0, WETH),
+            recipient,
+            trade.maximumAmountIn(slippageTolerance, trade.inputAmount).quotient,
+            trade.minimumAmountOut(slippageTolerance, trade.outputAmount).quotient
+          )
+          const preSignMulticall = EATMulticallExtended.encodePresignMulticallExtended(encodedTrade, deadline)
 
-          const { calls, value } = await SwapRouter.swapCallParameters(trades, {
+          const { parameters, calls, value } = await SwapRouter.swapCallParameters(trades, {
             slippageTolerance,
             recipient,
             deadlineOrPreviousBlockhash: deadline,
           })
-          expect(calls).toEqual(expectedCalldata)
+
+          expect(calls).toEqual([encodedTrade])
+          expect(parameters).toEqual(preSignMulticall.parameters)
           expect(value).toBe('0x00')
         })
       })
     })
 
-    describe('multi-hop exact output (v2 + v3)', () => {
+    describe('multi-hop exact output (v3)', () => {
       describe('different trade configurations result in identical calldata', () => {
-        const expectedCalldata =
-          '0x5ae401dc000000000000000000000000000000000000000000000000000000000000007b0000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000180000000000000000000000000000000000000000000000000000000000000010442712a670000000000000000000000000000000000000000000000000000000000000064000000000000000000000000000000000000000000000000000000000000006700000000000000000000000000000000000000000000000000000000000000800000000000000000000000000000000000000000000000000000000000000003000000000000000000000000000000000000000000000000000000000000000300000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000002000000000000000000000000c02aaa39b223fe8d0a0e5c4f27ead9083c756cc200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000012409b81346000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000800000000000000000000000000000000000000000000000000000000000000003000000000000000000000000000000000000000000000000000000000000006400000000000000000000000000000000000000000000000000000000000000690000000000000000000000000000000000000000000000000000000000000042c02aaa39b223fe8d0a0e5c4f27ead9083c756cc2000bb80000000000000000000000000000000000000002000bb8000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000'
         const amountOut = CurrencyAmount.fromRawAmount(WETH, JSBI.BigInt(100))
 
         const v3Trade = V3Trade.fromRoute(
@@ -246,268 +261,277 @@ describe('SwapRouter', () => {
         )
 
         it('array of trades', async () => {
-          const trades = [await v3Trade]
-          const { calls, value } = await SwapRouter.swapCallParameters(trades, {
+          const trade = await v3Trade
+          const trades = [trade]
+
+          const encodedTrade = encodeMultiHopTrade(
+            TradeType.EXACT_OUTPUT,
+            new V3Route([pool_0_1, pool_1_WETH], token0, WETH),
+            recipient,
+            trade.minimumAmountOut(slippageTolerance, trade.outputAmount).quotient,
+            trade.maximumAmountIn(slippageTolerance, trade.inputAmount).quotient
+          )
+          const preSignMulticall = EATMulticallExtended.encodePresignMulticallExtended(encodedTrade, deadline)
+
+          const { parameters, calls, value } = await SwapRouter.swapCallParameters(trades, {
             slippageTolerance,
             recipient,
             deadlineOrPreviousBlockhash: deadline,
           })
-          expect(calls).toEqual(expectedCalldata)
+
+          expect(calls).toEqual([encodedTrade])
+          expect(parameters).toEqual(preSignMulticall.parameters)
           expect(value).toBe('0x00')
         })
 
         it('meta-trade', async () => {
+          const trade = await v3Trade
           const trades = await Trade.fromRoutes(
             [
               {
-                routev3: (await v3Trade).swaps[0].route,
+                routev3: trade.swaps[0].route,
                 amount: amountOut,
               },
             ],
             TradeType.EXACT_OUTPUT
           )
 
-          const { calls, value } = await SwapRouter.swapCallParameters(trades, {
+          const encodedTrade = encodeMultiHopTrade(
+            TradeType.EXACT_OUTPUT,
+            new V3Route([pool_0_1, pool_1_WETH], token0, WETH),
+            recipient,
+            trade.minimumAmountOut(slippageTolerance, trade.outputAmount).quotient,
+            trade.maximumAmountIn(slippageTolerance, trade.inputAmount).quotient
+          )
+          const preSignMulticall = EATMulticallExtended.encodePresignMulticallExtended(encodedTrade, deadline)
+
+          const { parameters, calls, value } = await SwapRouter.swapCallParameters(trades, {
             slippageTolerance,
             recipient,
             deadlineOrPreviousBlockhash: deadline,
           })
-          expect(calls).toEqual(expectedCalldata)
+
+          expect(calls).toEqual([encodedTrade])
+          expect(parameters).toEqual(preSignMulticall.parameters)
           expect(value).toBe('0x00')
         })
       })
     })
 
-    describe('Mixed Route', () => {
-      describe('single-hop exact input (v2 + v3) backwards compatible', () => {
-        describe('different trade configurations result in identical calldata', () => {
-          // it('generates the same calldata', async () => {
-          //   const trades = [await v3Trade]
-          //   const { calls, value } = await SwapRouter.swapCallParameters(trades, {
-          //     slippageTolerance,
-          //     recipient,
-          //     deadlineOrPreviousBlockhash: deadline,
-          //   })
-          //   expect(calls).toEqual(expectedCalldata)
-          //   expect(value).toBe('0x00')
-          //   const mixedRouteTrades = [await mixedRouteTrade1, await mixedRouteTrade2]
-          //   const { calldata: mixedRouteCalldata, value: mixedRouteValue } = await SwapRouter.swapCallParameters(
-          //     mixedRouteTrades,
-          //     {
-          //       slippageTolerance,
-          //       recipient,
-          //       deadlineOrPreviousBlockhash: deadline,
-          //     }
-          //   )
-          //   expect(mixedRouteCalldata).toEqual(expectedCalldata)
-          //   expect(mixedRouteValue).toBe('0x00')
-          // })
-          // it('meta-trade', async () => {
-          //   const trades = await Trade.fromRoutes(
-          //     [
-          //       {
-          //         routev3: (await v3Trade).swaps[0].route,
-          //         amount: amountIn,
-          //       },
-          //     ],
-          //     TradeType.EXACT_INPUT
-          //   )
-          //   const { calls, value } = await SwapRouter.swapCallParameters(trades, {
-          //     slippageTolerance,
-          //     recipient,
-          //     deadlineOrPreviousBlockhash: deadline,
-          //   })
-          //   expect(calls).toEqual(expectedCalldata)
-          //   expect(value).toBe('0x00')
-          //   const mixedRouteTrades = await Trade.fromRoutes([], [], TradeType.EXACT_INPUT, [
-          //     {
-          //       mixedRoute: (await mixedRouteTrade1).swaps[0].route,
-          //       amount: amountIn,
-          //     },
-          //     {
-          //       mixedRoute: (await mixedRouteTrade2).swaps[0].route,
-          //       amount: amountIn,
-          //     },
-          //   ])
-          //   const { calldata: mixedRouteCalldata, value: mixedRouteValue } = await SwapRouter.swapCallParameters(
-          //     mixedRouteTrades,
-          //     {
-          //       slippageTolerance,
-          //       recipient,
-          //       deadlineOrPreviousBlockhash: deadline,
-          //     }
-          //   )
-          //   expect(mixedRouteCalldata).toEqual(expectedCalldata)
-          //   expect(mixedRouteValue).toBe('0x00')
-          // })
-        })
-      })
+    // [MAUVE_DISABLED]: Mixed routes are disabled
+    // describe('Mixed Route', () => {
+    //   describe('single-hop exact input (v2 + v3) backwards compatible', () => {
+    //     describe('different trade configurations result in identical calldata', () => {
+    //       it('generates the same calldata', async () => {
+    //         const trades = [await v3Trade]
+    //         const { parameters, calls, value } = await SwapRouter.swapCallParameters(trades, {
+    //           slippageTolerance,
+    //           recipient,
+    //           deadlineOrPreviousBlockhash: deadline,
+    //         })
+    //         expect(calls).toEqual([encodedTrade])
+    //         expect(value).toBe('0x00')
+    //         const mixedRouteTrades = [await mixedRouteTrade1, await mixedRouteTrade2]
+    //         const { calldata: mixedRouteCalldata, value: mixedRouteValue } = await SwapRouter.swapCallParameters(
+    //           mixedRouteTrades,
+    //           {
+    //             slippageTolerance,
+    //             recipient,
+    //             deadlineOrPreviousBlockhash: deadline,
+    //           }
+    //         )
+    //         expect(mixedRouteCalldata).toEqual(expectedCalldata)
+    //         expect(mixedRouteValue).toBe('0x00')
+    //       })
+    //       it('meta-trade', async () => {
+    //         const trades = await Trade.fromRoutes(
+    //           [
+    //             {
+    //               routev3: (await v3Trade).swaps[0].route,
+    //               amount: amountIn,
+    //             },
+    //           ],
+    //           TradeType.EXACT_INPUT
+    //         )
+    //         const { parameters, calls, value } = await SwapRouter.swapCallParameters(trades, {
+    //           slippageTolerance,
+    //           recipient,
+    //           deadlineOrPreviousBlockhash: deadline,
+    //         })
+    //         expect(calls).toEqual([encodedTrade])
+    //         expect(value).toBe('0x00')
+    //         const mixedRouteTrades = await Trade.fromRoutes([], [], TradeType.EXACT_INPUT, [
+    //           {
+    //             mixedRoute: (await mixedRouteTrade1).swaps[0].route,
+    //             amount: amountIn,
+    //           },
+    //           {
+    //             mixedRoute: (await mixedRouteTrade2).swaps[0].route,
+    //             amount: amountIn,
+    //           },
+    //         ])
+    //         const { calldata: mixedRouteCalldata, value: mixedRouteValue } = await SwapRouter.swapCallParameters(
+    //           mixedRouteTrades,
+    //           {
+    //             slippageTolerance,
+    //             recipient,
+    //             deadlineOrPreviousBlockhash: deadline,
+    //           }
+    //         )
+    //         expect(mixedRouteCalldata).toEqual(expectedCalldata)
+    //         expect(mixedRouteValue).toBe('0x00')
+    //       })
+    //     })
+    //   })
 
-      // describe('multi-hop exact input (mixed route) backwards compatible', () => {
-      //   describe('different trade configurations result in identical calldata', () => {
-      //     /// calldata verified and taken from existing test
-      //     const expectedCalldata =
-      //       '0x5ae401dc000000000000000000000000000000000000000000000000000000000000007b00000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000001800000000000000000000000000000000000000000000000000000000000000104472b43f30000000000000000000000000000000000000000000000000000000000000064000000000000000000000000000000000000000000000000000000000000006100000000000000000000000000000000000000000000000000000000000000800000000000000000000000000000000000000000000000000000000000000003000000000000000000000000000000000000000000000000000000000000000300000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000002000000000000000000000000c02aaa39b223fe8d0a0e5c4f27ead9083c756cc2000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000124b858183f0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000000030000000000000000000000000000000000000000000000000000000000000064000000000000000000000000000000000000000000000000000000000000005f00000000000000000000000000000000000000000000000000000000000000420000000000000000000000000000000000000001000bb80000000000000000000000000000000000000002000bb8c02aaa39b223fe8d0a0e5c4f27ead9083c756cc200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000'
-      //     const amountIn = CurrencyAmount.fromRawAmount(token0, JSBI.BigInt(100))
+    //   describe('multi-hop exact input (mixed route) backwards compatible', () => {
+    //     describe('different trade configurations result in identical calldata', () => {
+    //       /// calldata verified and taken from existing test
+    //       const expectedCalldata =
+    //         '0x5ae401dc000000000000000000000000000000000000000000000000000000000000007b00000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000001800000000000000000000000000000000000000000000000000000000000000104472b43f30000000000000000000000000000000000000000000000000000000000000064000000000000000000000000000000000000000000000000000000000000006100000000000000000000000000000000000000000000000000000000000000800000000000000000000000000000000000000000000000000000000000000003000000000000000000000000000000000000000000000000000000000000000300000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000002000000000000000000000000c02aaa39b223fe8d0a0e5c4f27ead9083c756cc2000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000124b858183f0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000000030000000000000000000000000000000000000000000000000000000000000064000000000000000000000000000000000000000000000000000000000000005f00000000000000000000000000000000000000000000000000000000000000420000000000000000000000000000000000000001000bb80000000000000000000000000000000000000002000bb8c02aaa39b223fe8d0a0e5c4f27ead9083c756cc200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000'
+    //       const amountIn = CurrencyAmount.fromRawAmount(token0, JSBI.BigInt(100))
 
-      //     const mixedRouteTrade1 = MixedRouteTrade.fromRoute(
-      //       new MixedRouteSDK([pair_0_1, pair_1_WETH], token0, WETH),
-      //       amountIn,
-      //       TradeType.EXACT_INPUT
-      //     )
-      //     const mixedRouteTrade2 = MixedRouteTrade.fromRoute(
-      //       new MixedRouteSDK([pool_0_1, pool_1_WETH], token0, WETH),
-      //       amountIn,
-      //       TradeType.EXACT_INPUT
-      //     )
+    //       const mixedRouteTrade1 = MixedRouteTrade.fromRoute(
+    //         new MixedRouteSDK([pair_0_1, pair_1_WETH], token0, WETH),
+    //         amountIn,
+    //         TradeType.EXACT_INPUT
+    //       )
+    //       const mixedRouteTrade2 = MixedRouteTrade.fromRoute(
+    //         new MixedRouteSDK([pool_0_1, pool_1_WETH], token0, WETH),
+    //         amountIn,
+    //         TradeType.EXACT_INPUT
+    //       )
 
-      //     it('single mixedRoute trade', async () => {
-      //       const trades = [await mixedRouteTrade1, await mixedRouteTrade2]
-      //       const { calls, value } = await SwapRouter.swapCallParameters(trades, {
-      //         slippageTolerance,
-      //         recipient,
-      //         deadlineOrPreviousBlockhash: deadline,
-      //       })
-      //       expect(calls).toEqual(expectedCalldata)
-      //       expect(value).toBe('0x00')
-      //     })
+    //       it('single mixedRoute trade', async () => {
+    //         const trades = [await mixedRouteTrade1, await mixedRouteTrade2]
+    //         const { parameters, calls, value } = await SwapRouter.swapCallParameters(trades, {
+    //           slippageTolerance,
+    //           recipient,
+    //           deadlineOrPreviousBlockhash: deadline,
+    //         })
+    //         expect(calls).toEqual([encodedTrade])
+    //         expect(value).toBe('0x00')
+    //       })
 
-      //     it('meta-trade', async () => {
-      //       const trades = await Trade.fromRoutes([], [], TradeType.EXACT_INPUT, [
-      //         {
-      //           mixedRoute: (await mixedRouteTrade1).swaps[0].route,
-      //           amount: amountIn,
-      //         },
-      //         {
-      //           mixedRoute: (await mixedRouteTrade2).swaps[0].route,
-      //           amount: amountIn,
-      //         },
-      //       ])
+    //       it('meta-trade', async () => {
+    //         const trades = await Trade.fromRoutes([], [], TradeType.EXACT_INPUT, [
+    //           {
+    //             mixedRoute: (await mixedRouteTrade1).swaps[0].route,
+    //             amount: amountIn,
+    //           },
+    //           {
+    //             mixedRoute: (await mixedRouteTrade2).swaps[0].route,
+    //             amount: amountIn,
+    //           },
+    //         ])
 
-      //       const { calls, value } = await SwapRouter.swapCallParameters(trades, {
-      //         slippageTolerance,
-      //         recipient,
-      //         deadlineOrPreviousBlockhash: deadline,
-      //       })
-      //       expect(calls).toEqual(expectedCalldata)
-      //       expect(value).toBe('0x00')
-      //     })
-      //   })
-      // })
+    //         const { parameters, calls, value } = await SwapRouter.swapCallParameters(trades, {
+    //           slippageTolerance,
+    //           recipient,
+    //           deadlineOrPreviousBlockhash: deadline,
+    //         })
+    //         expect(calls).toEqual([encodedTrade])
+    //         expect(value).toBe('0x00')
+    //       })
+    //     })
+    //   })
 
-      //   describe('mixed route trades with routes with consecutive pools/pairs', () => {
-      //     /// manually verified calldata
-      //     const expectedCalldata =
-      //       '0x5ae401dc000000000000000000000000000000000000000000000000000000000000007b00000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000001e0000000000000000000000000000000000000000000000000000000000000030000000000000000000000000000000000000000000000000000000000000004400000000000000000000000000000000000000000000000000000000000000124b858183f0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000064000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000420000000000000000000000000000000000000001000bb80000000000000000000000000000000000000002000bb8c02aaa39b223fe8d0a0e5c4f27ead9083c756cc20000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000e4472b43f30000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000005e000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000000030000000000000000000000000000000000000000000000000000000000000002000000000000000000000000c02aaa39b223fe8d0a0e5c4f27ead9083c756cc20000000000000000000000000000000000000000000000000000000000000003000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000104472b43f300000000000000000000000000000000000000000000000000000000000000640000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000003000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000003000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000104b858183f0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000000030000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000005f000000000000000000000000000000000000000000000000000000000000002b0000000000000000000000000000000000000003000bb8c02aaa39b223fe8d0a0e5c4f27ead9083c756cc200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000'
-      //     const amountIn = CurrencyAmount.fromRawAmount(token0, JSBI.BigInt(100))
-      //     const mixedRouteTrade1 = MixedRouteTrade.fromRoute(
-      //       new MixedRouteSDK([pool_0_1, pool_1_WETH, pair_2_WETH], token0, WETH),
-      //       amountIn,
-      //       TradeType.EXACT_INPUT
-      //     )
-      //     const mixedRouteTrade2 = MixedRouteTrade.fromRoute(
-      //       new MixedRouteSDK([pair_0_1, pair_1_2, pool_2_WETH], token0, WETH),
-      //       amountIn,
-      //       TradeType.EXACT_INPUT
-      //     )
+    //   describe('mixed route trades with routes with consecutive pools/pairs', () => {
+    //     /// manually verified calldata
+    //     const expectedCalldata =
+    //       '0x5ae401dc000000000000000000000000000000000000000000000000000000000000007b00000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000001e0000000000000000000000000000000000000000000000000000000000000030000000000000000000000000000000000000000000000000000000000000004400000000000000000000000000000000000000000000000000000000000000124b858183f0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000064000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000420000000000000000000000000000000000000001000bb80000000000000000000000000000000000000002000bb8c02aaa39b223fe8d0a0e5c4f27ead9083c756cc20000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000e4472b43f30000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000005e000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000000030000000000000000000000000000000000000000000000000000000000000002000000000000000000000000c02aaa39b223fe8d0a0e5c4f27ead9083c756cc20000000000000000000000000000000000000000000000000000000000000003000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000104472b43f300000000000000000000000000000000000000000000000000000000000000640000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000003000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000003000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000104b858183f0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000000030000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000005f000000000000000000000000000000000000000000000000000000000000002b0000000000000000000000000000000000000003000bb8c02aaa39b223fe8d0a0e5c4f27ead9083c756cc200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000'
+    //     const amountIn = CurrencyAmount.fromRawAmount(token0, JSBI.BigInt(100))
+    //     const mixedRouteTrade1 = MixedRouteTrade.fromRoute(
+    //       new MixedRouteSDK([pool_0_1, pool_1_WETH, pair_2_WETH], token0, WETH),
+    //       amountIn,
+    //       TradeType.EXACT_INPUT
+    //     )
+    //     const mixedRouteTrade2 = MixedRouteTrade.fromRoute(
+    //       new MixedRouteSDK([pair_0_1, pair_1_2, pool_2_WETH], token0, WETH),
+    //       amountIn,
+    //       TradeType.EXACT_INPUT
+    //     )
 
-      //     it('generates correct calldata', async () => {
-      //       const trades = [await mixedRouteTrade1, await mixedRouteTrade2]
-      //       const { calls, value } = await SwapRouter.swapCallParameters(trades, {
-      //         slippageTolerance,
-      //         recipient,
-      //         deadlineOrPreviousBlockhash: deadline,
-      //       })
-      //       expect(calls).toEqual(expectedCalldata)
-      //       expect(value).toBe('0x00')
-      //     })
-      //   })
-    })
+    //     it('generates correct calldata', async () => {
+    //       const trades = [await mixedRouteTrade1, await mixedRouteTrade2]
+    //       const { parameters, calls, value } = await SwapRouter.swapCallParameters(trades, {
+    //         slippageTolerance,
+    //         recipient,
+    //         deadlineOrPreviousBlockhash: deadline,
+    //       })
+    //       expect(calls).toEqual([encodedTrade])
+    //       expect(value).toBe('0x00')
+    //     })
+    //   })
+    // })
 
     describe('ETH input', () => {
-      describe('single-hop exact input (v2 + v3)', () => {
+      describe('single-hop exact input (v3)', () => {
         describe('different trade configurations result in identical calldata', () => {
-          const expectedCalldata =
-            '0x5ae401dc000000000000000000000000000000000000000000000000000000000000007b000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000016000000000000000000000000000000000000000000000000000000000000000e4472b43f300000000000000000000000000000000000000000000000000000000000000640000000000000000000000000000000000000000000000000000000000000062000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000000030000000000000000000000000000000000000000000000000000000000000002000000000000000000000000c02aaa39b223fe8d0a0e5c4f27ead9083c756cc200000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000e404e45aaf000000000000000000000000c02aaa39b223fe8d0a0e5c4f27ead9083c756cc200000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000bb8000000000000000000000000000000000000000000000000000000000000000300000000000000000000000000000000000000000000000000000000000000640000000000000000000000000000000000000000000000000000000000000061000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000'
           const amountIn = CurrencyAmount.fromRawAmount(ETHER, JSBI.BigInt(100))
 
           const v3Trade = V3Trade.fromRoute(new V3Route([pool_1_WETH], ETHER, token1), amountIn, TradeType.EXACT_INPUT)
 
           it('array of trades', async () => {
-            const trades = [await v3Trade]
-            const { calls, value } = await SwapRouter.swapCallParameters(trades, {
+            const trade = await v3Trade
+            const trades = [trade]
+            const encodedTrade = encodeTrade(
+              'exactInputSingle',
+              WETH,
+              token1,
+              pool_1_WETH,
+              recipient,
+              trade.maximumAmountIn(slippageTolerance, trade.inputAmount).quotient,
+              trade.minimumAmountOut(slippageTolerance, trade.outputAmount).quotient
+            )
+            const preSignMulticall = EATMulticallExtended.encodePresignMulticallExtended(encodedTrade, deadline)
+
+            const { parameters, calls, value } = await SwapRouter.swapCallParameters(trades, {
               slippageTolerance,
               recipient,
               deadlineOrPreviousBlockhash: deadline,
             })
-            expect(calls).toEqual(expectedCalldata)
-            expect(value).toBe('0xc8')
+            expect(calls).toEqual([encodedTrade])
+            expect(parameters).toEqual(preSignMulticall.parameters)
+            expect(value).toBe('0x64') // 100
           })
 
-          // it('mixedRoute produces the same calldata when swapped in', async () => {
-          //   const trades = [v2Trade, await mixedRouteTrade]
-          //   const { calls, value } = await SwapRouter.swapCallParameters(trades, {
-          //     slippageTolerance,
-          //     recipient,
-          //     deadlineOrPreviousBlockhash: deadline,
-          //   })
-          //   expect(calls).toEqual(expectedCalldata)
-          //   expect(value).toBe('0xc8')
-          // })
-
           it('meta-trade', async () => {
+            const trade = await v3Trade
             const trades = await Trade.fromRoutes(
               [
                 {
-                  routev3: (await v3Trade).swaps[0].route,
+                  routev3: trade.swaps[0].route,
                   amount: amountIn,
                 },
               ],
               TradeType.EXACT_INPUT
             )
+            const encodedTrade = encodeTrade(
+              'exactInputSingle',
+              WETH,
+              token1,
+              pool_1_WETH,
+              recipient,
+              trade.maximumAmountIn(slippageTolerance, trade.inputAmount).quotient,
+              trade.minimumAmountOut(slippageTolerance, trade.outputAmount).quotient
+            )
+            const preSignMulticall = EATMulticallExtended.encodePresignMulticallExtended(encodedTrade, deadline)
 
-            const { calls, value } = await SwapRouter.swapCallParameters(trades, {
+            const { parameters, calls, value } = await SwapRouter.swapCallParameters(trades, {
               slippageTolerance,
               recipient,
               deadlineOrPreviousBlockhash: deadline,
             })
-            expect(calls).toEqual(expectedCalldata)
-            expect(value).toBe('0xc8')
+            expect(calls).toEqual([encodedTrade])
+            expect(parameters).toEqual(preSignMulticall.parameters)
+            expect(value).toBe('0x64')
           })
-
-          // it('meta-trade with mixedRoute', async () => {
-          //   const trades = await Trade.fromRoutes(
-          //     [
-          //       {
-          //         routev2: v2Trade.route,
-          //         amount: amountIn,
-          //       },
-          //     ],
-          //     [],
-          //     TradeType.EXACT_INPUT,
-          //     [
-          //       {
-          //         mixedRoute: (await mixedRouteTrade).swaps[0].route,
-          //         amount: amountIn,
-          //       },
-          //     ]
-          //   )
-
-          //   const { calls, value } = await SwapRouter.swapCallParameters(trades, {
-          //     slippageTolerance,
-          //     recipient,
-          //     deadlineOrPreviousBlockhash: deadline,
-          //   })
-          //   expect(calls).toEqual(expectedCalldata)
-          //   expect(value).toBe('0xc8')
-          // })
         })
       })
 
-      describe('single-hop exact output (v2 + v3)', () => {
+      describe('single-hop exact output (v3)', () => {
         describe('different trade configurations result in identical calldata', () => {
-          const expectedCalldata =
-            '0x5ae401dc000000000000000000000000000000000000000000000000000000000000007b000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000030000000000000000000000000000000000000000000000000000000000000060000000000000000000000000000000000000000000000000000000000000018000000000000000000000000000000000000000000000000000000000000002a000000000000000000000000000000000000000000000000000000000000000e442712a6700000000000000000000000000000000000000000000000000000000000000640000000000000000000000000000000000000000000000000000000000000066000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000000030000000000000000000000000000000000000000000000000000000000000002000000000000000000000000c02aaa39b223fe8d0a0e5c4f27ead9083c756cc200000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000e45023b4df000000000000000000000000c02aaa39b223fe8d0a0e5c4f27ead9083c756cc200000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000bb8000000000000000000000000000000000000000000000000000000000000000300000000000000000000000000000000000000000000000000000000000000640000000000000000000000000000000000000000000000000000000000000067000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000412210e8a00000000000000000000000000000000000000000000000000000000'
           const amountOut = CurrencyAmount.fromRawAmount(token1, JSBI.BigInt(100))
 
           const v3Trade = V3Trade.fromRoute(
@@ -517,42 +541,70 @@ describe('SwapRouter', () => {
           )
 
           it('array of trades', async () => {
+            const trade = await v3Trade
             const trades = [await v3Trade]
-            const { calls, value } = await SwapRouter.swapCallParameters(trades, {
+
+            const encodedTrade = encodeTrade(
+              'exactOutputSingle',
+              WETH,
+              token1,
+              pool_1_WETH,
+              recipient,
+              trade.minimumAmountOut(slippageTolerance, trade.outputAmount).quotient,
+              trade.maximumAmountIn(slippageTolerance, trade.inputAmount).quotient
+            )
+
+            // must refund when paying in ETH: either with an exact output amount OR if there's a chance of a partial fill.
+            const expectedCalls = [encodedTrade, REFUND_ETH_FUNC_SIG]
+            const preSignMulticall = EATMulticallExtended.encodePresignMulticallExtended(expectedCalls, deadline)
+
+            const { parameters, calls, value } = await SwapRouter.swapCallParameters(trades, {
               slippageTolerance,
               recipient,
               deadlineOrPreviousBlockhash: deadline,
             })
-            expect(calls).toEqual(expectedCalldata)
-            expect(value).toBe('0xcd')
+            expect(calls).toEqual(expectedCalls)
+            expect(parameters).toEqual(preSignMulticall.parameters)
+            expect(value).toBe('0x67')
           })
 
           it('meta-trade', async () => {
+            const trade = await v3Trade
             const trades = await Trade.fromRoutes(
               [
                 {
-                  routev3: (await v3Trade).swaps[0].route,
+                  routev3: trade.swaps[0].route,
                   amount: amountOut,
                 },
               ],
               TradeType.EXACT_OUTPUT
             )
+            const encodedTrade = encodeTrade(
+              'exactOutputSingle',
+              WETH,
+              token1,
+              pool_1_WETH,
+              recipient,
+              trade.minimumAmountOut(slippageTolerance, trade.outputAmount).quotient,
+              trade.maximumAmountIn(slippageTolerance, trade.inputAmount).quotient
+            )
+            const expectedCalls = [encodedTrade, REFUND_ETH_FUNC_SIG]
+            const preSignMulticall = EATMulticallExtended.encodePresignMulticallExtended(expectedCalls, deadline)
 
-            const { calls, value } = await SwapRouter.swapCallParameters(trades, {
+            const { parameters, calls, value } = await SwapRouter.swapCallParameters(trades, {
               slippageTolerance,
               recipient,
               deadlineOrPreviousBlockhash: deadline,
             })
-            expect(calls).toEqual(expectedCalldata)
-            expect(value).toBe('0xcd')
+            expect(calls).toEqual(expectedCalls)
+            expect(parameters).toEqual(preSignMulticall.parameters)
+            expect(value).toBe('0x67')
           })
         })
       })
 
-      describe('multi-hop exact input (v2 + v3)', () => {
+      describe('multi-hop exact input (v3)', () => {
         describe('different trade configurations result in identical calldata', () => {
-          const expectedCalldata =
-            '0x5ae401dc000000000000000000000000000000000000000000000000000000000000007b00000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000001800000000000000000000000000000000000000000000000000000000000000104472b43f300000000000000000000000000000000000000000000000000000000000000640000000000000000000000000000000000000000000000000000000000000061000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000000030000000000000000000000000000000000000000000000000000000000000003000000000000000000000000c02aaa39b223fe8d0a0e5c4f27ead9083c756cc200000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000124b858183f0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000000030000000000000000000000000000000000000000000000000000000000000064000000000000000000000000000000000000000000000000000000000000005f0000000000000000000000000000000000000000000000000000000000000042c02aaa39b223fe8d0a0e5c4f27ead9083c756cc2000bb80000000000000000000000000000000000000002000bb8000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000'
           const amountIn = CurrencyAmount.fromRawAmount(ETHER, JSBI.BigInt(100))
 
           const v3Trade = V3Trade.fromRoute(
@@ -562,84 +614,64 @@ describe('SwapRouter', () => {
           )
 
           it('array of trades', async () => {
+            const trade = await v3Trade
             const trades = [await v3Trade]
-            const { calls, value } = await SwapRouter.swapCallParameters(trades, {
+            const encodedTrade = encodeMultiHopTrade(
+              TradeType.EXACT_INPUT,
+              new V3Route([pool_1_WETH, pool_0_1], ETHER, token0),
+              recipient,
+              trade.maximumAmountIn(slippageTolerance, trade.inputAmount).quotient,
+              trade.minimumAmountOut(slippageTolerance, trade.outputAmount).quotient
+            )
+            const preSignMulticall = EATMulticallExtended.encodePresignMulticallExtended(encodedTrade, deadline)
+
+            const { parameters, calls, value } = await SwapRouter.swapCallParameters(trades, {
               slippageTolerance,
               recipient,
               deadlineOrPreviousBlockhash: deadline,
             })
-            expect(calls).toEqual(expectedCalldata)
-            expect(value).toBe('0xc8')
+
+            expect(calls).toEqual([encodedTrade])
+            expect(parameters).toEqual(preSignMulticall.parameters)
+            expect(value).toBe('0x64')
           })
 
-          // it('mixedRoutes in array produce same calldata', async () => {
-          //   const trades = [await mixedRouteTrade, await v3Trade]
-          //   const { calls, value } = await SwapRouter.swapCallParameters(trades, {
-          //     slippageTolerance,
-          //     recipient,
-          //     deadlineOrPreviousBlockhash: deadline,
-          //   })
-          //   expect(calls).toEqual(expectedCalldata)
-          //   expect(value).toBe('0xc8')
-          // })
-
           it('meta-trade', async () => {
+            const trade = await v3Trade
             const trades = await Trade.fromRoutes(
               [
                 {
-                  routev3: (await v3Trade).swaps[0].route,
+                  routev3: trade.swaps[0].route,
                   amount: amountIn,
                 },
               ],
               TradeType.EXACT_INPUT
             )
 
-            const { calls, value } = await SwapRouter.swapCallParameters(trades, {
+            const encodedTrade = encodeMultiHopTrade(
+              TradeType.EXACT_INPUT,
+              new V3Route([pool_1_WETH, pool_0_1], ETHER, token0),
+              recipient,
+              trade.maximumAmountIn(slippageTolerance, trade.inputAmount).quotient,
+              trade.minimumAmountOut(slippageTolerance, trade.outputAmount).quotient
+            )
+            const preSignMulticall = EATMulticallExtended.encodePresignMulticallExtended(encodedTrade, deadline)
+
+            const { parameters, calls, value } = await SwapRouter.swapCallParameters(trades, {
               slippageTolerance,
               recipient,
               deadlineOrPreviousBlockhash: deadline,
             })
-            expect(calls).toEqual(expectedCalldata)
-            expect(value).toBe('0xc8')
+            expect(calls).toEqual([encodedTrade])
+            expect(parameters).toEqual(preSignMulticall.parameters)
+            expect(value).toBe('0x64')
           })
-
-          // it('meta-trade with mixedRoutes produces calldata in different order but same content', async () => {
-          //   /// @dev since we order the calldata in the array in a particular way (v2, v3, mixedRoute) the ordering will be different, but the encoded swap data will be the same
-          //   /// Additionally, since we aren't sharing balances across trades order should not matter
-          //   const expectedCalldata =
-          //     '0x5ae401dc000000000000000000000000000000000000000000000000000000000000007b00000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000001a00000000000000000000000000000000000000000000000000000000000000124b858183f0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000000030000000000000000000000000000000000000000000000000000000000000064000000000000000000000000000000000000000000000000000000000000005f0000000000000000000000000000000000000000000000000000000000000042c02aaa39b223fe8d0a0e5c4f27ead9083c756cc2000bb80000000000000000000000000000000000000002000bb80000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000104472b43f300000000000000000000000000000000000000000000000000000000000000640000000000000000000000000000000000000000000000000000000000000061000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000000030000000000000000000000000000000000000000000000000000000000000003000000000000000000000000c02aaa39b223fe8d0a0e5c4f27ead9083c756cc20000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000'
-          //   const trades = await Trade.fromRoutes(
-          //     [],
-          //     [
-          //       {
-          //         routev3: (await v3Trade).swaps[0].route,
-          //         amount: amountIn,
-          //       },
-          //     ],
-          //     TradeType.EXACT_INPUT,
-          //     [
-          //       {
-          //         mixedRoute: (await mixedRouteTrade).swaps[0].route,
-          //         amount: amountIn,
-          //       },
-          //     ]
-          //   )
-
-          //   const { calls, value } = await SwapRouter.swapCallParameters(trades, {
-          //     slippageTolerance,
-          //     recipient,
-          //     deadlineOrPreviousBlockhash: deadline,
-          //   })
-          //   expect(calls).toEqual(expectedCalldata)
-          //   expect(value).toBe('0xc8')
-          // })
         })
       })
 
-      describe('multi-hop exact output (v2 + v3)', () => {
+      describe('multi-hop exact output (v3)', () => {
         describe('different trade configurations result in identical calldata', () => {
-          const expectedCalldata =
-            '0x5ae401dc000000000000000000000000000000000000000000000000000000000000007b00000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000003000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000001a00000000000000000000000000000000000000000000000000000000000000300000000000000000000000000000000000000000000000000000000000000010442712a6700000000000000000000000000000000000000000000000000000000000000640000000000000000000000000000000000000000000000000000000000000067000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000000030000000000000000000000000000000000000000000000000000000000000003000000000000000000000000c02aaa39b223fe8d0a0e5c4f27ead9083c756cc20000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000012409b813460000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000000030000000000000000000000000000000000000000000000000000000000000064000000000000000000000000000000000000000000000000000000000000006900000000000000000000000000000000000000000000000000000000000000420000000000000000000000000000000000000001000bb80000000000000000000000000000000000000002000bb8c02aaa39b223fe8d0a0e5c4f27ead9083c756cc200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000412210e8a00000000000000000000000000000000000000000000000000000000'
+          // Append refund ETH
           const amountOut = CurrencyAmount.fromRawAmount(token0, JSBI.BigInt(100))
 
           const v3Trade = V3Trade.fromRoute(
@@ -649,41 +681,66 @@ describe('SwapRouter', () => {
           )
 
           it('array of trades', async () => {
+            const trade = await v3Trade
             const trades = [await v3Trade]
-            const { calls, value } = await SwapRouter.swapCallParameters(trades, {
+
+            const encodedTrade = encodeMultiHopTrade(
+              TradeType.EXACT_OUTPUT,
+              new V3Route([pool_1_WETH, pool_0_1], ETHER, token0),
+              recipient,
+              trade.minimumAmountOut(slippageTolerance, trade.outputAmount).quotient,
+              trade.maximumAmountIn(slippageTolerance, trade.inputAmount).quotient
+            )
+            const expectedCalls = [encodedTrade, REFUND_ETH_FUNC_SIG]
+            const preSignMulticall = EATMulticallExtended.encodePresignMulticallExtended(expectedCalls, deadline)
+
+            const { parameters, calls, value } = await SwapRouter.swapCallParameters(trades, {
               slippageTolerance,
               recipient,
               deadlineOrPreviousBlockhash: deadline,
             })
-            expect(calls).toEqual(expectedCalldata)
-            expect(value).toBe('0xd0')
+            expect(calls).toEqual(expectedCalls)
+            expect(parameters).toEqual(preSignMulticall.parameters)
+            expect(value).toBe('0x69')
           })
 
           it('meta-trade', async () => {
+            const trade = await v3Trade
             const trades = await Trade.fromRoutes(
               [
                 {
-                  routev3: (await v3Trade).swaps[0].route,
+                  routev3: trade.swaps[0].route,
                   amount: amountOut,
                 },
               ],
               TradeType.EXACT_OUTPUT
             )
 
-            const { calls, value } = await SwapRouter.swapCallParameters(trades, {
+            const encodedTrade = encodeMultiHopTrade(
+              TradeType.EXACT_OUTPUT,
+              new V3Route([pool_1_WETH, pool_0_1], ETHER, token0),
+              recipient,
+              trade.minimumAmountOut(slippageTolerance, trade.outputAmount).quotient,
+              trade.maximumAmountIn(slippageTolerance, trade.inputAmount).quotient
+            )
+            const expectedCalls = [encodedTrade, REFUND_ETH_FUNC_SIG]
+            const preSignMulticall = EATMulticallExtended.encodePresignMulticallExtended(expectedCalls, deadline)
+
+            const { parameters, calls, value } = await SwapRouter.swapCallParameters(trades, {
               slippageTolerance,
               recipient,
               deadlineOrPreviousBlockhash: deadline,
             })
-            expect(calls).toEqual(expectedCalldata)
-            expect(value).toBe('0xd0')
+
+            expect(calls).toEqual(expectedCalls)
+            expect(parameters).toEqual(preSignMulticall.parameters)
+            expect(value).toBe('0x69')
           })
         })
       })
 
       describe('high price impact with ETH input to result in refundETH being appended to calldata', () => {
-        const expectedCalldata =
-          '0x5ae401dc000000000000000000000000000000000000000000000000000000000000007b000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000030000000000000000000000000000000000000000000000000000000000000060000000000000000000000000000000000000000000000000000000000000018000000000000000000000000000000000000000000000000000000000000002a000000000000000000000000000000000000000000000000000000000000000e4472b43f300000000000000000000000000000000000000000000000000000000000000640000000000000000000000000000000000000000000000000000000000000062000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000000030000000000000000000000000000000000000000000000000000000000000002000000000000000000000000c02aaa39b223fe8d0a0e5c4f27ead9083c756cc200000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000e404e45aaf000000000000000000000000c02aaa39b223fe8d0a0e5c4f27ead9083c756cc200000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000bb8000000000000000000000000000000000000000000000000000000000000000300000000000000000000000000000000000000000000000000000000000000640000000000000000000000000000000000000000000000000000000000000030000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000412210e8a00000000000000000000000000000000000000000000000000000000'
+        // Append refund ETH
         const amountIn = CurrencyAmount.fromRawAmount(ETHER, JSBI.BigInt(100))
         const pool_1_WETH_slippage = makePool(token1, WETH, 100)
         const REFUND_ETH_FUNCTION_SIG = /12210e8a/
@@ -695,21 +752,33 @@ describe('SwapRouter', () => {
         )
 
         it('array of trades', async () => {
-          const trades = [await v3Trade]
-          const { calls, value } = await SwapRouter.swapCallParameters(trades, {
+          const trade = await v3Trade
+          const trades = [trade]
+          const encodedTrade = encodeTrade(
+            'exactInputSingle',
+            WETH,
+            token1,
+            pool_0_1,
+            recipient,
+            trade.maximumAmountIn(slippageTolerance, trade.inputAmount).quotient,
+            trade.minimumAmountOut(slippageTolerance, trade.outputAmount).quotient
+          )
+          const expectedCalls = [encodedTrade, REFUND_ETH_FUNC_SIG]
+          const preSignMulticall = EATMulticallExtended.encodePresignMulticallExtended(expectedCalls, deadline)
+
+          const { parameters, calls, value } = await SwapRouter.swapCallParameters(trades, {
             slippageTolerance,
             recipient,
             deadlineOrPreviousBlockhash: deadline,
           })
-          expect(calls).toEqual(expectedCalldata)
-          expect(calls).toMatch(REFUND_ETH_FUNCTION_SIG)
-          expect(value).toBe('0xc8')
+          expect(parameters).toEqual(preSignMulticall.parameters)
+          expect(calls).toEqual(expectedCalls)
+          expect(parameters).toMatch(REFUND_ETH_FUNCTION_SIG)
+          expect(value).toBe('0x64')
         })
       })
 
       describe('high price impact with ERCO20 input does not result in refundETH call', () => {
-        const expectedCalldata =
-          '0x5ae401dc000000000000000000000000000000000000000000000000000000000000007b000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000016000000000000000000000000000000000000000000000000000000000000000e4472b43f3000000000000000000000000000000000000000000000000000000000000006400000000000000000000000000000000000000000000000000000000000000620000000000000000000000000000000000000000000000000000000000000080000000000000000000000000000000000000000000000000000000000000000300000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000002000000000000000000000000c02aaa39b223fe8d0a0e5c4f27ead9083c756cc20000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000e404e45aaf0000000000000000000000000000000000000000000000000000000000000002000000000000000000000000c02aaa39b223fe8d0a0e5c4f27ead9083c756cc20000000000000000000000000000000000000000000000000000000000000bb8000000000000000000000000000000000000000000000000000000000000000300000000000000000000000000000000000000000000000000000000000000640000000000000000000000000000000000000000000000000000000000000030000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000'
         const amountIn = CurrencyAmount.fromRawAmount(token1, JSBI.BigInt(100))
         const pool_1_WETH_slippage = makePool(token1, WETH, 100)
         const REFUND_ETH_FUNCTION_SIG = /12210e8a/
@@ -721,103 +790,114 @@ describe('SwapRouter', () => {
         )
 
         it('array of trades', async () => {
-          const trades = [await v3Trade]
-          const { calls, value } = await SwapRouter.swapCallParameters(trades, {
+          const trade = await v3Trade
+          const trades = [trade]
+          const encodedTrade = encodeTrade(
+            'exactInputSingle',
+            token1,
+            WETH,
+            pool_0_1,
+            recipient,
+            trade.maximumAmountIn(slippageTolerance, trade.inputAmount).quotient,
+            trade.minimumAmountOut(slippageTolerance, trade.outputAmount).quotient
+          )
+          const preSignMulticall = EATMulticallExtended.encodePresignMulticallExtended(encodedTrade, deadline)
+
+          const { parameters, calls, value } = await SwapRouter.swapCallParameters(trades, {
             slippageTolerance,
             recipient,
             deadlineOrPreviousBlockhash: deadline,
           })
-          expect(calls).toEqual(expectedCalldata)
-          expect(calls).not.toMatch(REFUND_ETH_FUNCTION_SIG)
+
+          expect(parameters).toEqual(preSignMulticall.parameters)
+          expect(calls).toEqual([encodedTrade])
+          expect(parameters).not.toMatch(REFUND_ETH_FUNCTION_SIG)
           expect(value).toBe('0x00')
         })
       })
     })
 
     describe('ETH output', () => {
-      describe('single-hop exact input (v2 + v3)', () => {
+      describe('single-hop exact input (v3)', () => {
         describe('different trade configurations result in identical calldata', () => {
-          const expectedCalldata =
-            '0x5ae401dc000000000000000000000000000000000000000000000000000000000000007b000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000030000000000000000000000000000000000000000000000000000000000000060000000000000000000000000000000000000000000000000000000000000018000000000000000000000000000000000000000000000000000000000000002a000000000000000000000000000000000000000000000000000000000000000e4472b43f3000000000000000000000000000000000000000000000000000000000000006400000000000000000000000000000000000000000000000000000000000000620000000000000000000000000000000000000000000000000000000000000080000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000002000000000000000000000000c02aaa39b223fe8d0a0e5c4f27ead9083c756cc20000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000e404e45aaf0000000000000000000000000000000000000000000000000000000000000002000000000000000000000000c02aaa39b223fe8d0a0e5c4f27ead9083c756cc20000000000000000000000000000000000000000000000000000000000000bb8000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000640000000000000000000000000000000000000000000000000000000000000061000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004449404b7c00000000000000000000000000000000000000000000000000000000000000c3000000000000000000000000000000000000000000000000000000000000000300000000000000000000000000000000000000000000000000000000'
           const amountIn = CurrencyAmount.fromRawAmount(token1, JSBI.BigInt(100))
 
           const v3Trade = V3Trade.fromRoute(new V3Route([pool_1_WETH], token1, ETHER), amountIn, TradeType.EXACT_INPUT)
 
           it('array of trades', async () => {
+            const trade = await v3Trade
             const trades = [await v3Trade]
-            const { calls, value } = await SwapRouter.swapCallParameters(trades, {
+
+            const encodedTrade = encodeTrade(
+              'exactInputSingle',
+              token1,
+              WETH,
+              pool_1_WETH,
+              ADDRESS_THIS, // router is custodying
+              trade.maximumAmountIn(slippageTolerance, trade.inputAmount).quotient,
+              trade.minimumAmountOut(slippageTolerance, trade.outputAmount).quotient
+            )
+            const encodedUnwrap = PaymentsExtended.encodeUnwrapWETH9(
+              trade.minimumAmountOut(slippageTolerance, trade.outputAmount).quotient,
+              recipient
+            )
+            const expectedCalls = [encodedTrade, encodedUnwrap]
+            const preSignMulticall = EATMulticallExtended.encodePresignMulticallExtended(expectedCalls, deadline)
+
+            const { parameters, calls, value } = await SwapRouter.swapCallParameters(trades, {
               slippageTolerance,
               recipient,
               deadlineOrPreviousBlockhash: deadline,
             })
-            expect(calls).toEqual(expectedCalldata)
+
+            expect(calls).toEqual(expectedCalls)
+            expect(parameters).toEqual(preSignMulticall.parameters)
             expect(value).toBe('0x00')
           })
 
-          // it('array of trades with mixedRoute produces same calldata', async () => {
-          //   const trades = [v2Trade, await mixedRouteTrade]
-          //   const { calls, value } = await SwapRouter.swapCallParameters(trades, {
-          //     slippageTolerance,
-          //     recipient,
-          //     deadlineOrPreviousBlockhash: deadline,
-          //   })
-          //   expect(calls).toEqual(expectedCalldata)
-          //   expect(value).toBe('0x00')
-          // })
-
           it('meta-trade', async () => {
+            const trade = await v3Trade
             const trades = await Trade.fromRoutes(
               [
                 {
-                  routev3: (await v3Trade).swaps[0].route,
+                  routev3: trade.swaps[0].route,
                   amount: amountIn,
                 },
               ],
               TradeType.EXACT_INPUT
             )
 
-            const { calls, value } = await SwapRouter.swapCallParameters(trades, {
+            const encodedTrade = encodeTrade(
+              'exactInputSingle',
+              token1,
+              WETH,
+              pool_1_WETH,
+              ADDRESS_THIS, // router is custodying
+              trade.maximumAmountIn(slippageTolerance, trade.inputAmount).quotient,
+              trade.minimumAmountOut(slippageTolerance, trade.outputAmount).quotient
+            )
+            const encodedUnwrap = PaymentsExtended.encodeUnwrapWETH9(
+              trade.minimumAmountOut(slippageTolerance, trade.outputAmount).quotient,
+              recipient
+            )
+            const expectedCalls = [encodedTrade, encodedUnwrap]
+            const preSignMulticall = EATMulticallExtended.encodePresignMulticallExtended(expectedCalls, deadline)
+
+            const { parameters, calls, value } = await SwapRouter.swapCallParameters(trades, {
               slippageTolerance,
               recipient,
               deadlineOrPreviousBlockhash: deadline,
             })
-            expect(calls).toEqual(expectedCalldata)
+
+            expect(calls).toEqual(expectedCalls)
+            expect(parameters).toEqual(preSignMulticall.parameters)
             expect(value).toBe('0x00')
           })
-
-          // it('meta-trade with mixedRoute produces same calldata', async () => {
-          //   const trades = await Trade.fromRoutes(
-          //     [
-          //       {
-          //         routev2: v2Trade.route,
-          //         amount: amountIn,
-          //       },
-          //     ],
-          //     [],
-          //     TradeType.EXACT_INPUT,
-          //     [
-          //       {
-          //         mixedRoute: (await mixedRouteTrade).swaps[0].route,
-          //         amount: amountIn,
-          //       },
-          //     ]
-          //   )
-
-          //   const { calls, value } = await SwapRouter.swapCallParameters(trades, {
-          //     slippageTolerance,
-          //     recipient,
-          //     deadlineOrPreviousBlockhash: deadline,
-          //   })
-          //   expect(calls).toEqual(expectedCalldata)
-          //   expect(value).toBe('0x00')
-          // })
         })
       })
 
-      describe('single-hop exact output (v2 + v3)', () => {
+      describe('single-hop exact output (v3)', () => {
         describe('different trade configurations result in identical calldata', () => {
-          const expectedCalldata =
-            '0x5ae401dc000000000000000000000000000000000000000000000000000000000000007b000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000030000000000000000000000000000000000000000000000000000000000000060000000000000000000000000000000000000000000000000000000000000018000000000000000000000000000000000000000000000000000000000000002a000000000000000000000000000000000000000000000000000000000000000e442712a67000000000000000000000000000000000000000000000000000000000000006400000000000000000000000000000000000000000000000000000000000000660000000000000000000000000000000000000000000000000000000000000080000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000002000000000000000000000000c02aaa39b223fe8d0a0e5c4f27ead9083c756cc20000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000e45023b4df0000000000000000000000000000000000000000000000000000000000000002000000000000000000000000c02aaa39b223fe8d0a0e5c4f27ead9083c756cc20000000000000000000000000000000000000000000000000000000000000bb8000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000640000000000000000000000000000000000000000000000000000000000000067000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004449404b7c00000000000000000000000000000000000000000000000000000000000000c8000000000000000000000000000000000000000000000000000000000000000300000000000000000000000000000000000000000000000000000000'
           const amountOut = CurrencyAmount.fromRawAmount(ETHER, JSBI.BigInt(100))
 
           const v3Trade = V3Trade.fromRoute(
@@ -827,42 +907,77 @@ describe('SwapRouter', () => {
           )
 
           it('array of trades', async () => {
+            const trade = await v3Trade
             const trades = [await v3Trade]
-            const { calls, value } = await SwapRouter.swapCallParameters(trades, {
+
+            const encodedTrade = encodeTrade(
+              'exactOutputSingle',
+              token1,
+              WETH,
+              pool_1_WETH,
+              ADDRESS_THIS, // router is custodying
+              trade.minimumAmountOut(slippageTolerance, trade.outputAmount).quotient,
+              trade.maximumAmountIn(slippageTolerance, trade.inputAmount).quotient
+            )
+            const encodedUnwrap = PaymentsExtended.encodeUnwrapWETH9(
+              trade.minimumAmountOut(slippageTolerance, trade.outputAmount).quotient,
+              recipient
+            )
+            const expectedCalls = [encodedTrade, encodedUnwrap]
+            const preSignMulticall = EATMulticallExtended.encodePresignMulticallExtended(expectedCalls, deadline)
+
+            const { parameters, calls, value } = await SwapRouter.swapCallParameters(trades, {
               slippageTolerance,
               recipient,
               deadlineOrPreviousBlockhash: deadline,
             })
-            expect(calls).toEqual(expectedCalldata)
+
+            expect(calls).toEqual(expectedCalls)
+            expect(parameters).toEqual(preSignMulticall.parameters)
             expect(value).toBe('0x00')
           })
 
           it('meta-trade', async () => {
+            const trade = await v3Trade
             const trades = await Trade.fromRoutes(
               [
                 {
-                  routev3: (await v3Trade).swaps[0].route,
+                  routev3: trade.swaps[0].route,
                   amount: amountOut,
                 },
               ],
               TradeType.EXACT_OUTPUT
             )
 
-            const { calls, value } = await SwapRouter.swapCallParameters(trades, {
+            const encodedTrade = encodeTrade(
+              'exactOutputSingle',
+              token1,
+              WETH,
+              pool_1_WETH,
+              ADDRESS_THIS, // router is custodying
+              trade.minimumAmountOut(slippageTolerance, trade.outputAmount).quotient,
+              trade.maximumAmountIn(slippageTolerance, trade.inputAmount).quotient
+            )
+            const encodedUnwrap = PaymentsExtended.encodeUnwrapWETH9(
+              trade.minimumAmountOut(slippageTolerance, trade.outputAmount).quotient,
+              recipient
+            )
+            const expectedCalls = [encodedTrade, encodedUnwrap]
+            const preSignMulticall = EATMulticallExtended.encodePresignMulticallExtended(expectedCalls, deadline)
+            const { parameters, calls, value } = await SwapRouter.swapCallParameters(trades, {
               slippageTolerance,
               recipient,
               deadlineOrPreviousBlockhash: deadline,
             })
-            expect(calls).toEqual(expectedCalldata)
+            expect(calls).toEqual(expectedCalls)
+            expect(parameters).toEqual(preSignMulticall.parameters)
             expect(value).toBe('0x00')
           })
         })
       })
 
-      describe('multi-hop exact input (v2 + v3)', () => {
+      describe('multi-hop exact input (v3)', () => {
         describe('different trade configurations result in identical calldata', () => {
-          const expectedCalldata =
-            '0x5ae401dc000000000000000000000000000000000000000000000000000000000000007b00000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000003000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000001a000000000000000000000000000000000000000000000000000000000000003000000000000000000000000000000000000000000000000000000000000000104472b43f30000000000000000000000000000000000000000000000000000000000000064000000000000000000000000000000000000000000000000000000000000006100000000000000000000000000000000000000000000000000000000000000800000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000300000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000002000000000000000000000000c02aaa39b223fe8d0a0e5c4f27ead9083c756cc2000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000124b858183f0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000064000000000000000000000000000000000000000000000000000000000000005f00000000000000000000000000000000000000000000000000000000000000420000000000000000000000000000000000000001000bb80000000000000000000000000000000000000002000bb8c02aaa39b223fe8d0a0e5c4f27ead9083c756cc200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004449404b7c00000000000000000000000000000000000000000000000000000000000000c0000000000000000000000000000000000000000000000000000000000000000300000000000000000000000000000000000000000000000000000000'
           const amountIn = CurrencyAmount.fromRawAmount(token0, JSBI.BigInt(100))
 
           const v3Trade = V3Trade.fromRoute(
@@ -872,44 +987,66 @@ describe('SwapRouter', () => {
           )
 
           it('array of trades', async () => {
-            const trades = [await v3Trade]
-            const { calls, value } = await SwapRouter.swapCallParameters(trades, {
+            const trade = await v3Trade
+            const trades = [trade]
+            const encodedTrade = encodeMultiHopTrade(
+              TradeType.EXACT_INPUT,
+              new V3Route([pool_0_1, pool_1_WETH], token0, ETHER),
+              ADDRESS_THIS, // router is custodying
+              trade.maximumAmountIn(slippageTolerance, trade.inputAmount).quotient,
+              trade.minimumAmountOut(slippageTolerance, trade.outputAmount).quotient
+            )
+            const encodedUnwrap = PaymentsExtended.encodeUnwrapWETH9(
+              trade.minimumAmountOut(slippageTolerance, trade.outputAmount).quotient,
+              recipient
+            )
+            const expectedCalls = [encodedTrade, encodedUnwrap]
+            const preSignMulticall = EATMulticallExtended.encodePresignMulticallExtended(expectedCalls, deadline)
+
+            const { parameters, calls, value } = await SwapRouter.swapCallParameters(trades, {
               slippageTolerance,
               recipient,
               deadlineOrPreviousBlockhash: deadline,
             })
-            expect(calls).toEqual(expectedCalldata)
+            expect(calls).toEqual(expectedCalls)
+            expect(parameters).toEqual(preSignMulticall.parameters)
             expect(value).toBe('0x00')
           })
 
-          // it('array of trades with mixedRoute produces same calldata', async () => {
-          //   const trades = [await mixedRouteTrade, await v3Trade]
-          //   const { calls, value } = await SwapRouter.swapCallParameters(trades, {
-          //     slippageTolerance,
-          //     recipient,
-          //     deadlineOrPreviousBlockhash: deadline,
-          //   })
-          //   expect(calls).toEqual(expectedCalldata)
-          //   expect(value).toBe('0x00')
-          // })
-
           it('meta-trade', async () => {
+            const trade = await v3Trade
             const trades = await Trade.fromRoutes(
               [
                 {
-                  routev3: (await v3Trade).swaps[0].route,
+                  routev3: trade.swaps[0].route,
                   amount: amountIn,
                 },
               ],
               TradeType.EXACT_INPUT
             )
 
-            const { calls, value } = await SwapRouter.swapCallParameters(trades, {
+            const encodedTrade = encodeMultiHopTrade(
+              TradeType.EXACT_INPUT,
+              new V3Route([pool_0_1, pool_1_WETH], token0, ETHER),
+              ADDRESS_THIS, // router is custodying
+              trade.maximumAmountIn(slippageTolerance, trade.inputAmount).quotient,
+              trade.minimumAmountOut(slippageTolerance, trade.outputAmount).quotient
+            )
+            const encodedUnwrap = PaymentsExtended.encodeUnwrapWETH9(
+              trade.minimumAmountOut(slippageTolerance, trade.outputAmount).quotient,
+              recipient
+            )
+            const expectedCalls = [encodedTrade, encodedUnwrap]
+            const preSignMulticall = EATMulticallExtended.encodePresignMulticallExtended(expectedCalls, deadline)
+
+            const { parameters, calls, value } = await SwapRouter.swapCallParameters(trades, {
               slippageTolerance,
               recipient,
               deadlineOrPreviousBlockhash: deadline,
             })
-            expect(calls).toEqual(expectedCalldata)
+
+            expect(calls).toEqual(expectedCalls)
+            expect(parameters).toEqual(preSignMulticall.parameters)
             expect(value).toBe('0x00')
           })
 
@@ -933,21 +1070,19 @@ describe('SwapRouter', () => {
           //     ]
           //   )
 
-          //   const { calls, value } = await SwapRouter.swapCallParameters(trades, {
+          //   const { parameters, calls, value } = await SwapRouter.swapCallParameters(trades, {
           //     slippageTolerance,
           //     recipient,
           //     deadlineOrPreviousBlockhash: deadline,
           //   })
-          //   expect(calls).toEqual(expectedCalldata)
+          //   expect(calls).toEqual([encodedTrade])
           //   expect(value).toBe('0x00')
           // })
         })
       })
 
-      describe('multi-hop exact output (v2 + v3)', () => {
+      describe('multi-hop exact output (v3)', () => {
         describe('different trade configurations result in identical calldata', () => {
-          const expectedCalldata =
-            '0x5ae401dc000000000000000000000000000000000000000000000000000000000000007b00000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000003000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000001a00000000000000000000000000000000000000000000000000000000000000300000000000000000000000000000000000000000000000000000000000000010442712a670000000000000000000000000000000000000000000000000000000000000064000000000000000000000000000000000000000000000000000000000000006700000000000000000000000000000000000000000000000000000000000000800000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000300000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000002000000000000000000000000c02aaa39b223fe8d0a0e5c4f27ead9083c756cc200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000012409b81346000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000800000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000006400000000000000000000000000000000000000000000000000000000000000690000000000000000000000000000000000000000000000000000000000000042c02aaa39b223fe8d0a0e5c4f27ead9083c756cc2000bb80000000000000000000000000000000000000002000bb8000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004449404b7c00000000000000000000000000000000000000000000000000000000000000c8000000000000000000000000000000000000000000000000000000000000000300000000000000000000000000000000000000000000000000000000'
           const amountOut = CurrencyAmount.fromRawAmount(ETHER, JSBI.BigInt(100))
 
           const v3Trade = V3Trade.fromRoute(
@@ -957,33 +1092,68 @@ describe('SwapRouter', () => {
           )
 
           it('array of trades', async () => {
-            const trades = [await v3Trade]
-            const { calls, value } = await SwapRouter.swapCallParameters(trades, {
+            const trade = await v3Trade
+            const trades = [trade]
+
+            const encodedTrade = encodeMultiHopTrade(
+              TradeType.EXACT_OUTPUT,
+              new V3Route([pool_0_1, pool_1_WETH], token0, ETHER),
+              ADDRESS_THIS, // router is custodying
+              trade.minimumAmountOut(slippageTolerance, trade.outputAmount).quotient,
+              trade.maximumAmountIn(slippageTolerance, trade.inputAmount).quotient
+            )
+            const encodedUnwrap = PaymentsExtended.encodeUnwrapWETH9(
+              trade.minimumAmountOut(slippageTolerance, trade.outputAmount).quotient,
+              recipient
+            )
+            const expectedCalls = [encodedTrade, encodedUnwrap]
+            const preSignMulticall = EATMulticallExtended.encodePresignMulticallExtended(expectedCalls, deadline)
+
+            const { parameters, calls, value } = await SwapRouter.swapCallParameters(trades, {
               slippageTolerance,
               recipient,
               deadlineOrPreviousBlockhash: deadline,
             })
-            expect(calls).toEqual(expectedCalldata)
+
+            expect(calls).toEqual(expectedCalls)
+            expect(parameters).toEqual(preSignMulticall.parameters)
             expect(value).toBe('0x00')
           })
 
           it('meta-trade', async () => {
+            const trade = await v3Trade
             const trades = await Trade.fromRoutes(
               [
                 {
-                  routev3: (await v3Trade).swaps[0].route,
+                  routev3: trade.swaps[0].route,
                   amount: amountOut,
                 },
               ],
               TradeType.EXACT_OUTPUT
             )
 
-            const { calls, value } = await SwapRouter.swapCallParameters(trades, {
+            const encodedTrade = encodeMultiHopTrade(
+              TradeType.EXACT_OUTPUT,
+              new V3Route([pool_0_1, pool_1_WETH], token0, ETHER),
+              ADDRESS_THIS, // router is custodying
+              trade.minimumAmountOut(slippageTolerance, trade.outputAmount).quotient,
+              trade.maximumAmountIn(slippageTolerance, trade.inputAmount).quotient
+            )
+            const encodedUnwrap = PaymentsExtended.encodeUnwrapWETH9(
+              trade.minimumAmountOut(slippageTolerance, trade.outputAmount).quotient,
+              recipient
+            )
+            const expectedCalls = [encodedTrade, encodedUnwrap]
+            const preSignMulticall = EATMulticallExtended.encodePresignMulticallExtended(expectedCalls, deadline)
+
+            const { parameters, calls, value } = await SwapRouter.swapCallParameters(trades, {
               slippageTolerance,
               recipient,
               deadlineOrPreviousBlockhash: deadline,
             })
-            expect(calls).toEqual(expectedCalldata)
+
+            expect(calls).toEqual(expectedCalls)
+            expect(parameters).toEqual(preSignMulticall.parameters)
             expect(value).toBe('0x00')
           })
         })
@@ -991,54 +1161,3 @@ describe('SwapRouter', () => {
     })
   })
 })
-
-const encodeTrade = (
-  tradeName: string,
-  token0: Token,
-  token1: Token,
-  pool: Pool,
-  recipient: string,
-  primaryAmount: BigintIsh,
-  secondaryAmount: BigintIsh,
-  sqrtPrice?: BigintIsh
-) => {
-  const sigHash = SwapRouter.INTERFACE.getSighash(tradeName)
-  const paddedToken0Address = token0.address.toLowerCase().substring(2).padStart(64, '0')
-  const paddedToken1Address = token1.address.toLowerCase().substring(2).padStart(64, '0')
-  const paddedFee = pool.fee.toString(16).padStart(64, '0')
-  const paddedRecipient = recipient.substring(2).padStart(64, '0')
-
-  // exactOutput/exactInput use this as output/input respectively
-  const paddedPrimaryAmount = toHex(primaryAmount).substring(2).padStart(64, '0')
-
-  // the remaining amount is used as secondary
-  const paddedSecondaryAmount = toHex(secondaryAmount).substring(2).padStart(64, '0')
-  const paddedSqrtPrice = toHex(sqrtPrice ?? 0)
-    .substring(2)
-    .padStart(64, '0')
-
-  return `${sigHash}${paddedToken0Address}${paddedToken1Address}${paddedFee}${paddedRecipient}${paddedPrimaryAmount}${paddedSecondaryAmount}${paddedSqrtPrice}`
-}
-
-const encodeMultiHopTrade = (
-  tradeType: TradeType,
-  route: Route<Currency, Currency>,
-  recipient: string,
-  primaryAmount: BigintIsh,
-  minimumSecondaryAmount: BigintIsh
-) => {
-  const sigHash = SwapRouter.INTERFACE.getSighash(tradeType === TradeType.EXACT_OUTPUT ? 'exactOutput' : 'exactInput')
-  const paddedPath = encodeRouteToPath(route, tradeType === TradeType.EXACT_OUTPUT)
-    .substring(2)
-    .padEnd(192, '0')
-  const paddedPathOffset =
-    '00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000080'
-  const paddedPathLength = '0000000000000000000000000000000000000000000000000000000000000042'
-  const paddedRecipient = recipient.substring(2).padStart(64, '0')
-
-  // the remaining amount is used as secondary
-  const paddedPrimaryAmount = toHex(primaryAmount).substring(2).padStart(64, '0')
-  const paddedSecondaryAmount = toHex(minimumSecondaryAmount).substring(2).padStart(64, '0')
-
-  return `${sigHash}${paddedPathOffset}${paddedRecipient}${paddedPrimaryAmount}${paddedSecondaryAmount}${paddedPathLength}${paddedPath}`
-}
