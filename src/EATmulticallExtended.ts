@@ -78,7 +78,7 @@ export abstract class EATMulticallExtended {
       const previousBlockhash = validateAndParseBytes32(validation)
       return {
         functionSignature: EATMulticallExtended.INTERFACE.getSighash(
-          'multicall(uint8,bytes32,bytes32,uint256,bytes32,bytes[]'
+          'multicall(uint8,bytes32,bytes32,uint256,bytes32,bytes[])'
         ),
         parameters: utils.packParameters(
           EATMulticallExtended.INTERFACE,
