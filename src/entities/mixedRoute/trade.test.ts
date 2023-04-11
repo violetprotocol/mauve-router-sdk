@@ -1,6 +1,23 @@
-import { Percent, Price, sqrt, Token, CurrencyAmount, TradeType, WETH9, Ether, Currency } from '@uniswap/sdk-core'
-import { Pair } from '@uniswap/v2-sdk'
-import { encodeSqrtRatioX96, FeeAmount, nearestUsableTick, Pool, TickMath, TICK_SPACINGS } from '@uniswap/v3-sdk'
+import {
+  Percent,
+  Price,
+  sqrt,
+  Token,
+  CurrencyAmount,
+  TradeType,
+  WETH9,
+  Ether,
+  Currency,
+} from '@violetprotocol/mauve-sdk-core'
+import { Pair } from '@violetprotocol/mauve-v2-sdk'
+import {
+  encodeSqrtRatioX96,
+  FeeAmount,
+  nearestUsableTick,
+  Pool,
+  TickMath,
+  TICK_SPACINGS,
+} from '@violetprotocol/mauve-v3-sdk'
 import JSBI from 'jsbi'
 import { MixedRouteSDK } from './route'
 import { MixedRouteTrade } from './trade'

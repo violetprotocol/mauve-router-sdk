@@ -1,4 +1,4 @@
-import { sqrt, Token, CurrencyAmount, TradeType, WETH9, Ether, Percent, Price } from '@uniswap/sdk-core'
+import { sqrt, Token, CurrencyAmount, TradeType, WETH9, Ether, Percent, Price } from '@violetprotocol/mauve-sdk-core'
 import JSBI from 'jsbi'
 import { MixedRoute, RouteV2, RouteV3 } from './route'
 import { Trade } from './trade'
@@ -10,8 +10,8 @@ import {
   TickMath,
   nearestUsableTick,
   encodeSqrtRatioX96,
-} from '@uniswap/v3-sdk'
-import { Pair, Route as V2RouteSDK } from '@uniswap/v2-sdk'
+} from '@violetprotocol/mauve-v3-sdk'
+import { Pair, Route as V2RouteSDK } from '@violetprotocol/mauve-v2-sdk'
 import { MixedRouteSDK } from './mixedRoute/route'
 
 describe('Trade', () => {
