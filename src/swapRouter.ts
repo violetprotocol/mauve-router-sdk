@@ -68,7 +68,7 @@ type AnyTradeType =
   | V3Trade<Currency, Currency, TradeType>[]
 
 /**
- * Represents the Uniswap V2 + V3 SwapRouter02, and has static methods for helping execute trades.
+ * Represents the Mauve SwapRouter(02), and has static methods for helping execute trades.
  */
 export abstract class SwapRouter {
   public static INTERFACE: Interface = new Interface(abi)
