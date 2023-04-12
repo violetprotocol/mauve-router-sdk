@@ -397,7 +397,7 @@ describe('SwapRouter', () => {
 
           it('array of trades', async () => {
             const trade = await v3Trade
-            const trades = [await v3Trade]
+            const trades = [trade]
 
             const encodedTrade = encodeTrade(
               'exactOutputSingle',
@@ -470,7 +470,7 @@ describe('SwapRouter', () => {
 
           it('array of trades', async () => {
             const trade = await v3Trade
-            const trades = [await v3Trade]
+            const trades = [trade]
             const encodedTrade = encodeMultiHopTrade(
               TradeType.EXACT_INPUT,
               new V3Route([pool_1_WETH, pool_0_1], ETHER, token0),
@@ -537,7 +537,7 @@ describe('SwapRouter', () => {
 
           it('array of trades', async () => {
             const trade = await v3Trade
-            const trades = [await v3Trade]
+            const trades = [trade]
 
             const encodedTrade = encodeMultiHopTrade(
               TradeType.EXACT_OUTPUT,
@@ -678,7 +678,7 @@ describe('SwapRouter', () => {
 
           it('array of trades', async () => {
             const trade = await v3Trade
-            const trades = [await v3Trade]
+            const trades = [trade]
 
             const encodedTrade = encodeTrade(
               'exactInputSingle',
@@ -760,7 +760,7 @@ describe('SwapRouter', () => {
 
           it('array of trades', async () => {
             const trade = await v3Trade
-            const trades = [await v3Trade]
+            const trades = [trade]
 
             const encodedTrade = encodeTrade(
               'exactOutputSingle',
