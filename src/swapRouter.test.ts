@@ -27,6 +27,8 @@ describe('SwapRouter', () => {
   const sqrtRatioX96 = encodeSqrtRatioX96(1, 1)
   const liquidity = 1_000_000
 
+  const REFUND_ETH_FUNCTION_SIG = /12210e8a/
+
   // v3
   const makePool = (token0: Token, token1: Token, liquidity: number) => {
     return new Pool(token0, token1, feeAmount, sqrtRatioX96, liquidity, TickMath.getTickAtSqrtRatio(sqrtRatioX96), [
@@ -596,7 +598,6 @@ describe('SwapRouter', () => {
         // Append refund ETH
         const amountIn = CurrencyAmount.fromRawAmount(ETHER, JSBI.BigInt(100))
         const pool_1_WETH_slippage = makePool(token1, WETH, 100)
-        const REFUND_ETH_FUNCTION_SIG = /12210e8a/
 
         const v3Trade = V3Trade.fromRoute(
           new V3Route([pool_1_WETH_slippage], ETHER, token1),
@@ -634,8 +635,6 @@ describe('SwapRouter', () => {
       describe('high price impact with ERCO20 input does not result in refundETH call', () => {
         const amountIn = CurrencyAmount.fromRawAmount(token1, JSBI.BigInt(100))
         const pool_1_WETH_slippage = makePool(token1, WETH, 100)
-        const REFUND_ETH_FUNCTION_SIG = /12210e8a/
-
         const v3Trade = V3Trade.fromRoute(
           new V3Route([pool_1_WETH_slippage], token1, WETH),
           amountIn,
