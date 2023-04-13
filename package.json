@@ -1,6 +1,6 @@
 {
   "name": "@violetprotocol/mauve-router-sdk",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "description": "An sdk for routing swaps using Mauve.",
   "main": "dist/index.js",
   "typings": "dist/index.d.ts",
@@ -23,14 +23,15 @@
   ],
   "license": "MIT",
   "dependencies": {
-    "@ethersproject/abi": "^5.5.0",
-    "@uniswap/swap-router-contracts": "1.1.0",
     "@violetprotocol/mauve-sdk-core": "3.2.0",
+    "@violetprotocol/mauve-swap-router-contracts": "1.5.0",
     "@violetprotocol/mauve-v2-sdk": "3.1.0",
-    "@violetprotocol/mauve-v3-sdk": "4.0.0"
+    "@violetprotocol/mauve-v3-sdk": "4.2.0",
+    "ethers": "^5.7.2"
   },
   "devDependencies": {
     "@types/jest": "^24.0.25",
+    "@violetprotocol/ethereum-access-token-helpers": "^0.2.0",
     "prettier": "^2.4.1",
     "tsdx": "^0.14.1"
   },
