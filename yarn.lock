@@ -1537,6 +1537,11 @@
     "@types/yargs" "^15.0.0"
     chalk "^3.0.0"
 
+"@openzeppelin/contracts-upgradeable@^4.8.1":
+  version "4.8.2"
+  resolved "https://registry.yarnpkg.com/@openzeppelin/contracts-upgradeable/-/contracts-upgradeable-4.8.2.tgz#edef522bdbc46d478481391553bababdd2199e27"
+  integrity sha512-zIggnBwemUmmt9IS73qxi+tumALxCY4QEs3zLCII78k0Gfse2hAOdAkuAeLUzvWUpneMUfFE5sGHzEUSTvn4Ag==
+
 "@openzeppelin/contracts@3.4.2-solc-0.7":
   version "3.4.2-solc-0.7"
   resolved "https://registry.yarnpkg.com/@openzeppelin/contracts/-/contracts-3.4.2-solc-0.7.tgz#38f4dbab672631034076ccdf2f3201fab1726635"
@@ -1815,6 +1820,24 @@
   resolved "https://registry.yarnpkg.com/@violetprotocol/ethereum-access-token/-/ethereum-access-token-0.2.0-sol07.tgz#3309332b42c13128453361f72810f3ca49851591"
   integrity sha512-Lq8v7fiSM+hNjewguOSrBvW2ewqkiNdlaX61LsFViP6LD3jfrND8jMeLr3Bau1WEZUooNRaRsKTsRuCIGrrCkg==
 
+"@violetprotocol/mauve-core@1.2.3":
+  version "1.2.3"
+  resolved "https://registry.yarnpkg.com/@violetprotocol/mauve-core/-/mauve-core-1.2.3.tgz#61e00765959f7e690f471905418fad8f3a2cc61a"
+  integrity sha512-iZjTNvQj/mvGJBdaAVwWfyjiqdI49NKL4H5Kq8SQFpJR/d9QivcfjQuh/3R8TNCgJqGsjRd6HucfcgVQICQqUw==
+
+"@violetprotocol/mauve-periphery@1.8.2":
+  version "1.8.2"
+  resolved "https://registry.yarnpkg.com/@violetprotocol/mauve-periphery/-/mauve-periphery-1.8.2.tgz#4015ce27dd53ef1956181a4ccfa55981b9d3202b"
+  integrity sha512-0Lm651C1QTj3vQvX1z6wiXY0zPCUMo+QRjTBiMpfXZu9wL4Mroziol8mr3LWyxkZ1YxzWhaB/lxZoHHu0zCkTQ==
+  dependencies:
+    "@openzeppelin/contracts" "3.4.2-solc-0.7"
+    "@uniswap/lib" "^4.0.1-alpha"
+    "@violetprotocol/ethereum-access-token" "0.2.0-sol07"
+    "@violetprotocol/mauve-core" "1.2.3"
+    "@violetprotocol/violetid" "1.2.2"
+    base64-sol "1.0.1"
+    hardhat-watcher "^2.1.1"
+
 "@violetprotocol/mauve-sdk-core@3.2.0":
   version "3.2.0"
   resolved "https://registry.yarnpkg.com/@violetprotocol/mauve-sdk-core/-/mauve-sdk-core-3.2.0.tgz#847747bd0cdfe025049c8187194ae7ba81447850"
@@ -1868,18 +1891,25 @@
     base64-sol "1.0.1"
     hardhat-watcher "^2.1.1"
 
-"@violetprotocol/mauve-v3-sdk@4.2.0-alpha.1":
-  version "4.2.0-alpha.1"
-  resolved "https://registry.yarnpkg.com/@violetprotocol/mauve-v3-sdk/-/mauve-v3-sdk-4.2.0-alpha.1.tgz#9f7d4395cabced633ab2a6a6a668cb84e3d1276f"
-  integrity sha512-lKgBxBx3czoMF4nkRQajJtJ90TbEL4mYOJ038vqWj2bn9T8PnBZV4eyo8MsdbU6jJOMS9G7TnYBpoJrD/OBMZQ==
+"@violetprotocol/mauve-v3-sdk@4.2.0":
+  version "4.2.0"
+  resolved "https://registry.yarnpkg.com/@violetprotocol/mauve-v3-sdk/-/mauve-v3-sdk-4.2.0.tgz#5f648747e2fbd19803c5af12827a3fe0c3aca12a"
+  integrity sha512-blNzsRgrmCJR2k1hnRHiG7MyLz61pghK7ObqhfB4kdMICUJB6FbO+G6emPZPBhi6VJo8WvANzSFqdEJmyShMWA==
   dependencies:
     "@ethersproject/solidity" "^5.0.9"
+    "@violetprotocol/mauve-periphery" "1.8.2"
     "@violetprotocol/mauve-sdk-core" "3.2.0"
     "@violetprotocol/mauve-swap-router-contracts" "1.5.0"
-    "@violetprotocol/mauve-v3-periphery" "1.8.0"
     ethers "^5.7.2"
     tiny-invariant "^1.1.0"
     tiny-warning "^1.0.3"
+
+"@violetprotocol/violetid@1.2.2":
+  version "1.2.2"
+  resolved "https://registry.yarnpkg.com/@violetprotocol/violetid/-/violetid-1.2.2.tgz#3d626a04c92e611cb07b9f4e5f61ec50995329b8"
+  integrity sha512-AKJi4KTmFwMekxFWfks2hW6JZyhgX4oF1oUpnHpTbdSBCuPTbqTAdSc7nnrJfzT+vY1i6i1kmwl2vc0+Ficknw==
+  dependencies:
+    "@openzeppelin/contracts-upgradeable" "^4.8.1"
 
 abab@^2.0.0:
   version "2.0.5"

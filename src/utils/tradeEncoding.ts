@@ -1,5 +1,6 @@
 import { Token, BigintIsh, TradeType, Currency } from '@violetprotocol/mauve-sdk-core'
-import { Pool, SwapRouter, toHex, Route, encodeRouteToPath } from '@violetprotocol/mauve-v3-sdk'
+import { Pool, toHex, Route, encodeRouteToPath } from '@violetprotocol/mauve-v3-sdk'
+import { SwapRouter } from '../swapRouter'
 
 export const encodeTrade = (
   tradeName: string,
