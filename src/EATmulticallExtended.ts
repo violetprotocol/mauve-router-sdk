@@ -1,11 +1,8 @@
 import { Interface } from '@ethersproject/abi'
-import { BigintIsh } from '@violetprotocol/mauve-sdk-core'
 import { abi } from '@violetprotocol/mauve-swap-router-contracts/artifacts/contracts/interfaces/IEATMulticallExtended.sol/IEATMulticallExtended.json'
 import { EATMulticall, PresignEATFunctionCall, toHex } from '@violetprotocol/mauve-v3-sdk'
 import { utils } from '@violetprotocol/ethereum-access-token-helpers'
-
-// deadline or previousBlockhash
-export type Validation = BigintIsh | string
+import { Validation } from './multicallExtended'
 
 function validateAndParseBytes32(bytes32: string): string {
   if (!bytes32.match(/^0x[0-9a-fA-F]{64}$/)) {

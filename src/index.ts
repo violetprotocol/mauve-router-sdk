@@ -1,6 +1,7 @@
 export * from './constants'
 export * from './approveAndCall'
 export * from './multicallExtended'
+export * from './EATmulticallExtended'
 export * from './paymentsExtended'
 export * from './swapRouter'
 export * from './entities/trade'
