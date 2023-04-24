@@ -20,7 +20,8 @@ import { Trade } from './entities/trade'
 import { Protocol } from './entities/protocol'
 import { RouteV3 } from './entities/route'
 import { PaymentsExtended } from './paymentsExtended'
-import { EATMulticallExtended, Validation } from './EATmulticallExtended'
+import { EATMulticallExtended } from './EATmulticallExtended'
+import { Validation } from './multicallExtended'
 
 const ZERO = JSBI.BigInt(0)
 const REFUND_ETH_PRICE_IMPACT_THRESHOLD = new Percent(JSBI.BigInt(50), JSBI.BigInt(100))
