@@ -1,6 +1,6 @@
 import { Interface } from '@ethersproject/abi'
 import { Currency, CurrencyAmount, Percent, TradeType, validateAndParseAddress } from '@violetprotocol/mauve-sdk-core'
-import { abi } from '@violetprotocol/mauve-swap-router-contracts/artifacts/contracts/interfaces/ISwapRouter02.sol/ISwapRouter02.json'
+import { abi } from '@violetprotocol/mauve-swap-router-contracts/artifacts/contracts/interfaces/IMauveSwapRouter.sol/IMauveSwapRouter.json'
 import { Trade as V2Trade } from '@violetprotocol/mauve-v2-sdk'
 import {
   encodeRouteToPath,
