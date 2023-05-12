@@ -1,6 +1,6 @@
 {
   "name": "@violetprotocol/mauve-router-sdk",
-  "version": "1.6.2",
+  "version": "1.6.3",
   "description": "An sdk for routing swaps using Mauve.",
   "main": "dist/index.js",
   "typings": "dist/index.d.ts",
@@ -26,7 +26,7 @@
     "@violetprotocol/mauve-sdk-core": "3.2.0",
     "@violetprotocol/mauve-swap-router-contracts": "1.5.2",
     "@violetprotocol/mauve-v2-sdk": "3.1.0",
-    "@violetprotocol/mauve-v3-sdk": "4.2.1",
+    "@violetprotocol/mauve-v3-sdk": "4.2.2",
     "ethers": "^5.7.2"
   },
   "devDependencies": {
