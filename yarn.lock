@@ -1861,12 +1861,13 @@
     tiny-invariant "^1.1.0"
     tiny-warning "^1.0.3"
 
-"@violetprotocol/mauve-v3-sdk@4.2.2":
-  version "4.2.2"
-  resolved "https://registry.yarnpkg.com/@violetprotocol/mauve-v3-sdk/-/mauve-v3-sdk-4.2.2.tgz#07951c3c066a8efd552e87cd080188368256b793"
-  integrity sha512-2jJw8wocMzhrVyZftqiuxOjIg0KfX+MWzRwR/sKNdTlvV4yDQ8+ZPUn9AXspCKHmSR+x+zbuv3FrOxUch39BGw==
+"@violetprotocol/mauve-v3-sdk@4.2.3":
+  version "4.2.3"
+  resolved "https://registry.yarnpkg.com/@violetprotocol/mauve-v3-sdk/-/mauve-v3-sdk-4.2.3.tgz#39db55963dd2cf7e33eafe7e4ecec00895cbf785"
+  integrity sha512-AShiWFu8ebgPYxwIZAm7EQ7ztLYm5k3kW65vCKFq5Ohe/NAqZ+FGTk+gksZghxstUoP/Pemv4oY5Ms8beS7rdQ==
   dependencies:
     "@ethersproject/solidity" "^5.0.9"
+    "@violetprotocol/ethereum-access-token-helpers" "^0.2.0"
     "@violetprotocol/mauve-periphery" "1.8.6"
     "@violetprotocol/mauve-sdk-core" "3.2.0"
     "@violetprotocol/mauve-swap-router-contracts" "1.5.2"
