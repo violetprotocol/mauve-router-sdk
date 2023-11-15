@@ -1856,18 +1856,6 @@
     base64-sol "1.0.1"
     hardhat-watcher "^2.1.1"
 
-"@violetprotocol/mauve-sdk-core@3.2.0":
-  version "3.2.0"
-  resolved "https://registry.yarnpkg.com/@violetprotocol/mauve-sdk-core/-/mauve-sdk-core-3.2.0.tgz#847747bd0cdfe025049c8187194ae7ba81447850"
-  integrity sha512-AORGalU8gNuS5Th0oigi78HwQHMe1wt/URpEooHVQFm3vUp+xBz0vsT6XfOaLwZfd+kWBfk9Ym/s4+6k2/zx/A==
-  dependencies:
-    "@ethersproject/address" "^5.0.2"
-    big.js "^5.2.2"
-    decimal.js-light "^2.5.0"
-    jsbi "^3.1.4"
-    tiny-invariant "^1.1.0"
-    toformat "^2.0.0"
-
 "@violetprotocol/mauve-sdk-core@3.3.0":
   version "3.3.0"
   resolved "https://registry.yarnpkg.com/@violetprotocol/mauve-sdk-core/-/mauve-sdk-core-3.3.0.tgz#ef7d48f1c3076e744b899d5767d5f18badf86e53"
@@ -1902,14 +1890,14 @@
     dotenv "^14.2.0"
     hardhat-watcher "^2.1.1"
 
-"@violetprotocol/mauve-v2-sdk@3.1.0":
-  version "3.1.0"
-  resolved "https://registry.yarnpkg.com/@violetprotocol/mauve-v2-sdk/-/mauve-v2-sdk-3.1.0.tgz#bbead7511ba5f75672e5f0e4fd5ac51a8ff88e54"
-  integrity sha512-QK0vUgglARFlYB5V6t2AS4jRGXyaax8t7YzeN0alNKTNQZmGRep5eqOaW6CsoNqpN3qwBkS5Enp9R/pEytSiqA==
+"@violetprotocol/mauve-v2-sdk@3.1.1":
+  version "3.1.1"
+  resolved "https://registry.yarnpkg.com/@violetprotocol/mauve-v2-sdk/-/mauve-v2-sdk-3.1.1.tgz#eb3492ab11e91388a3f47996fd985ee47d904a1a"
+  integrity sha512-j9cXjNpTWsW/03vrmWPkc8di6ECJjAJ1v34+eyxXVV97atiVr2TVUqqJ+rShAEUXYdt0FhtrtwcbJhholod7XA==
   dependencies:
     "@ethersproject/address" "^5.0.0"
     "@ethersproject/solidity" "^5.0.0"
-    "@violetprotocol/mauve-sdk-core" "3.2.0"
+    "@violetprotocol/mauve-sdk-core" "3.3.0"
     tiny-invariant "^1.1.0"
     tiny-warning "^1.0.3"
 
