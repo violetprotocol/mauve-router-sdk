@@ -1868,6 +1868,18 @@
     tiny-invariant "^1.1.0"
     toformat "^2.0.0"
 
+"@violetprotocol/mauve-sdk-core@3.3.0":
+  version "3.3.0"
+  resolved "https://registry.yarnpkg.com/@violetprotocol/mauve-sdk-core/-/mauve-sdk-core-3.3.0.tgz#ef7d48f1c3076e744b899d5767d5f18badf86e53"
+  integrity sha512-DH7FtiaOpxZtQeTDJYULE8J2/8T4OlzTYpnxAzpMFqMxfTuu1GATXy7a4YJzEUIWqm0FUtCfDFOqnW+8jBCXvA==
+  dependencies:
+    "@ethersproject/address" "^5.0.2"
+    big.js "^5.2.2"
+    decimal.js-light "^2.5.0"
+    jsbi "^3.1.4"
+    tiny-invariant "^1.1.0"
+    toformat "^2.0.0"
+
 "@violetprotocol/mauve-swap-router-contracts@1.5.2":
   version "1.5.2"
   resolved "https://registry.yarnpkg.com/@violetprotocol/mauve-swap-router-contracts/-/mauve-swap-router-contracts-1.5.2.tgz#791e10cfd80ee25496157977f27520280fcae893"
@@ -1901,15 +1913,15 @@
     tiny-invariant "^1.1.0"
     tiny-warning "^1.0.3"
 
-"@violetprotocol/mauve-v3-sdk@4.2.4":
-  version "4.2.4"
-  resolved "https://registry.yarnpkg.com/@violetprotocol/mauve-v3-sdk/-/mauve-v3-sdk-4.2.4.tgz#e4ec8c9e2ac39cd9a963fc05f6d6c0ed8fa31401"
-  integrity sha512-SizzJy4zdPIhAwGHjhn8wCh46Ju+uvGr7U6S5pE1ZIR+UsqfqsfMW67JmjoIsxCMtvS+lvL7qC9DdCwKzuLL9A==
+"@violetprotocol/mauve-v3-sdk@4.2.5":
+  version "4.2.5"
+  resolved "https://registry.yarnpkg.com/@violetprotocol/mauve-v3-sdk/-/mauve-v3-sdk-4.2.5.tgz#c32fbe34881d3e2f29bff9100ea50535ab858ee0"
+  integrity sha512-0TjNY39j1PVlIPghB8+0MGFOQ/u/gSGsbVH27pJcUlC+dHLE9j+E33TLRC3DEdPcF8hkV4SKcNn03+LQes2UZw==
   dependencies:
     "@ethersproject/solidity" "^5.0.9"
     "@violetprotocol/ethereum-access-token-helpers" "^0.2.0"
     "@violetprotocol/mauve-periphery" "1.8.8"
-    "@violetprotocol/mauve-sdk-core" "3.2.0"
+    "@violetprotocol/mauve-sdk-core" "3.3.0"
     "@violetprotocol/mauve-swap-router-contracts" "1.5.4"
     ethers "^5.7.2"
     tiny-invariant "^1.1.0"
